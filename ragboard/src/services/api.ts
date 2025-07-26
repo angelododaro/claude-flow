@@ -58,14 +58,16 @@ export class ApiService {
   }
 
   // Resource endpoints
-  static async uploadResource(file: File, metadata?: any): Promise<Resource> {
+  static async uploadResource(file: File, metadata?: any): Promise<any> {
     const formData = new FormData();
     formData.append('file', file);
     if (metadata) {
-      formData.append('metadata', JSON.stringify(metadata));
+      Object.keys(metadata).forEach(key => {
+        formData.append(key, metadata[key]);
+      });
     }
 
-    const response = await apiClient.post('/resources/upload', formData, {
+    const response = await apiClient.post(`${API_V1_PREFIX}/resources/upload`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -82,18 +84,20 @@ export class ApiService {
     return response.data;
   }
 
-  static async processURL(url: string, platform?: string): Promise<Resource> {
-    const response = await apiClient.post('/resources/process-url', { 
-      url, 
-      platform 
+  static async processURL(url: string, platform?: string): Promise<any> {
+    const response = await apiClient.post(`${API_V1_PREFIX}/resources/url`, { 
+      name: url.split('/').pop() || 'Web Resource',
+      source_url: url,
+      source_metadata: { platform }
     });
     return response.data;
   }
 
-  static async processText(title: string, content: string): Promise<Resource> {
-    const response = await apiClient.post('/resources/process-text', { 
-      title, 
-      content 
+  static async processText(title: string, content: string): Promise<any> {
+    const response = await apiClient.post(`${API_V1_PREFIX}/resources/text`, { 
+      name: title,
+      content: content,
+      resource_type: 'text'
     });
     return response.data;
   }

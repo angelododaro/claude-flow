@@ -73,6 +73,17 @@ class Settings(BaseSettings):
     # OCR Settings
     tesseract_path: str = "/usr/bin/tesseract"
     ocr_languages: str = "eng"
+    use_cloud_ocr: bool = False
+    use_cloud_transcription: bool = False
+    
+    # Celery/Redis Configuration
+    celery_broker_url: str = "redis://localhost:6379/0"
+    celery_result_backend: str = "redis://localhost:6379/0"
+    
+    # AWS Settings (for cloud services)
+    aws_access_key_id: Optional[str] = None
+    aws_secret_access_key: Optional[str] = None
+    aws_region: str = "us-east-1"
     
     # WebSocket Settings
     ws_message_queue_size: int = 100

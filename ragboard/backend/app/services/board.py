@@ -6,15 +6,15 @@ import json
 import uuid
 from typing import List, Optional
 from datetime import datetime
-from sqlalchemy.orm import Session
-from sqlalchemy import and_
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import and_, select
 
 from app.models.board import Board
 from app.schemas.board import BoardCreate, BoardUpdate, BoardResponse, BoardListResponse
 
 
 class BoardService:
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
     
     async def save_board(self, user_id: uuid.UUID, board_data: BoardCreate) -> BoardResponse:
@@ -32,8 +32,8 @@ class BoardService:
         )
         
         self.db.add(board)
-        self.db.commit()
-        self.db.refresh(board)
+        await self.db.commit()
+        await self.db.refresh(board)
         
         return BoardResponse(
             id=str(board.id),
@@ -47,9 +47,11 @@ class BoardService:
     
     async def list_boards(self, user_id: uuid.UUID) -> List[BoardListResponse]:
         """List all boards for a user."""
-        boards = self.db.query(Board).filter(
+        query = select(Board).where(
             Board.user_id == user_id
-        ).order_by(Board.updated_at.desc()).all()
+        ).order_by(Board.updated_at.desc())
+        result = await self.db.execute(query)
+        boards = result.scalars().all()
         
         return [
             BoardListResponse(
@@ -67,9 +69,11 @@ class BoardService:
         except ValueError:
             return None
         
-        board = self.db.query(Board).filter(
+        query = select(Board).where(
             and_(Board.id == board_uuid, Board.user_id == user_id)
-        ).first()
+        )
+        result = await self.db.execute(query)
+        board = result.scalar_one_or_none()
         
         if not board:
             return None
@@ -91,13 +95,15 @@ class BoardService:
         except ValueError:
             return False
         
-        board = self.db.query(Board).filter(
+        query = select(Board).where(
             and_(Board.id == board_uuid, Board.user_id == user_id)
-        ).first()
+        )
+        result = await self.db.execute(query)
+        board = result.scalar_one_or_none()
         
         if not board:
             return False
         
-        self.db.delete(board)
-        self.db.commit()
+        await self.db.delete(board)
+        await self.db.commit()
         return True

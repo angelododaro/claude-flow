@@ -22,6 +22,8 @@ const platformIcons: Record<Platform, React.ElementType> = {
   tiktok: Music,
   linkedin: Link,
   facebook: Link,
+  twitter: Link,
+  general: FileText,
   web: Link,
 };
 
@@ -31,6 +33,8 @@ const platformColors: Record<Platform, string> = {
   tiktok: 'bg-black',
   linkedin: 'bg-blue-600',
   facebook: 'bg-blue-500',
+  twitter: 'bg-blue-400',
+  general: 'bg-gray-500',
   web: 'bg-gray-500',
 };
 
@@ -40,8 +44,13 @@ export interface ResourceNodeData extends Resource {
 }
 
 export const ResourceNode = memo<NodeProps<ResourceNodeData>>(({ data, selected }) => {
-  const Icon = data.platform ? platformIcons[data.platform] : FileText;
-  const bgColor = data.platform ? platformColors[data.platform] : 'bg-gray-400';
+  // Determine icon based on type or platform
+  let Icon = FileText;
+  if (data.type === 'image') Icon = Image;
+  else if (data.type === 'audio') Icon = Music;
+  else if (data.platform && platformIcons[data.platform]) Icon = platformIcons[data.platform];
+  
+  const bgColor = data.platform && platformColors[data.platform] ? platformColors[data.platform] : 'bg-gray-400';
   const setDraggedResource = useBoardStore((state) => state.setDraggedResource);
 
   const handleDragStart = (e: React.DragEvent) => {

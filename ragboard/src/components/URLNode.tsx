@@ -2,20 +2,25 @@ import React from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Link, X } from 'lucide-react';
 import { useBoardStore } from '../store/boardStore';
+import { ResizableNodeWrapper } from './ResizableNodeWrapper';
 
 interface URLNodeData {
+  id: string;
   title: string;
-  url: string;
+  url?: string;
   platform?: string;
   metadata?: {
     thumbnail?: string;
     description?: string;
     favicon?: string;
+    url?: string;
   };
+  onDelete?: (id: string) => void;
 }
 
 const URLNode: React.FC<NodeProps<URLNodeData>> = ({ data, selected, id }) => {
   const deleteResource = useBoardStore((state) => state.deleteResource);
+  const displayUrl = data.url || data.metadata?.url || '';
 
   const getPlatformIcon = () => {
     // In a real app, would have specific icons for each platform
@@ -24,15 +29,20 @@ const URLNode: React.FC<NodeProps<URLNodeData>> = ({ data, selected, id }) => {
   
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    deleteResource(id);
+    if (data.onDelete) {
+      data.onDelete(data.id || id);
+    } else {
+      deleteResource(id);
+    }
   };
 
   return (
-    <div
-      className={`relative group rounded-lg border-2 ${
-        selected ? 'border-blue-600 shadow-lg' : 'border-blue-400'
-      } bg-white min-w-[280px] transition-all hover:shadow-md`}
-    >
+    <ResizableNodeWrapper selected={selected} minWidth={280} minHeight={150}>
+      <div
+        className={`relative group rounded-lg border-2 ${
+          selected ? 'border-blue-600 shadow-lg' : 'border-blue-400'
+        } bg-white w-full h-full transition-all hover:shadow-md`}
+      >
       <Handle type="target" position={Position.Top} />
       <Handle type="source" position={Position.Bottom} />
       <Handle type="target" position={Position.Left} />
@@ -67,21 +77,24 @@ const URLNode: React.FC<NodeProps<URLNodeData>> = ({ data, selected, id }) => {
                 {data.metadata.description}
               </p>
             )}
-            <a
-              href={data.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
-            >
-              <span className="truncate max-w-[200px]">{data.url}</span>
+            {displayUrl && (
+              <a
+                href={displayUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+              >
+                <span className="truncate max-w-[200px]">{displayUrl}</span>
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
               </svg>
             </a>
+            )}
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </ResizableNodeWrapper>
   );
 };
 

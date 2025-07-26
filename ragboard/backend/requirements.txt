@@ -29,3 +29,10 @@ scikit-learn==1.4.0
 email-validator==2.1.0
 asyncpg==0.29.0
 chromadb==1.0.15
+python-docx==1.1.0
+# Audio/Video processing
+openai-whisper==20231117
+moviepy==1.0.3
+ffmpeg-python==0.2.0
+# Advanced PDF processing
+PyMuPDF==1.23.8

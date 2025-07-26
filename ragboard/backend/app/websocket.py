@@ -2,11 +2,12 @@
 WebSocket handlers for real-time features.
 """
 
-from typing import Dict, Set, Optional, List
+from typing import Dict, Set, Optional, List, Any
 from uuid import UUID
 import json
 import asyncio
 from datetime import datetime
+from dataclasses import dataclass, asdict
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, status
 from fastapi.websockets import WebSocketState
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +17,7 @@ import logging
 from app.core.config import settings
 from app.db.base import get_async_session
 from app.models.user import User
+from app.models.board import Board
 from app.models.conversation import Conversation, Message, MessageRole
 from app.core.security import verify_token
 from app.services.ai_chat import AIChatService
@@ -25,11 +27,37 @@ logger = logging.getLogger(__name__)
 
 websocket_router = APIRouter()
 
+
+@dataclass
+class CursorPosition:
+    x: float
+    y: float
+    user_id: str
+    user_name: str
+    color: str
+    timestamp: float
+
+
+@dataclass
+class UserPresence:
+    user_id: str
+    user_name: str
+    status: str  # 'active', 'idle', 'away'
+    color: str
+    last_seen: float
+    cursor: Optional[CursorPosition] = None
+
+
 # Connection manager for handling multiple WebSocket connections
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[UUID, Set[WebSocket]] = {}
         self.user_connections: Dict[UUID, WebSocket] = {}
+        # Board-specific connections and presence
+        self.board_connections: Dict[UUID, Set[WebSocket]] = {}
+        self.board_users: Dict[UUID, Set[UUID]] = {}
+        self.user_presence: Dict[UUID, UserPresence] = {}
+        self.user_colors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#F7DC6F", "#BB8FCE", "#85C1E2", "#F8C471"]
     
     async def connect(self, websocket: WebSocket, user_id: UUID):
         await websocket.accept()
@@ -69,6 +97,102 @@ class ConnectionManager:
         """Broadcast message to all users in a conversation."""
         for user_id in user_ids:
             await self.send_personal_message(message, user_id)
+    
+    async def connect_to_board(self, websocket: WebSocket, board_id: UUID, user_id: UUID, user_name: str):
+        """Connect user to a specific board."""
+        if board_id not in self.board_connections:
+            self.board_connections[board_id] = set()
+            self.board_users[board_id] = set()
+        
+        self.board_connections[board_id].add(websocket)
+        self.board_users[board_id].add(user_id)
+        
+        # Create user presence
+        color_index = len(self.board_users[board_id]) % len(self.user_colors)
+        self.user_presence[user_id] = UserPresence(
+            user_id=str(user_id),
+            user_name=user_name,
+            status="active",
+            color=self.user_colors[color_index],
+            last_seen=datetime.utcnow().timestamp()
+        )
+        
+        logger.info(f"User {user_id} connected to board {board_id}")
+    
+    def disconnect_from_board(self, websocket: WebSocket, board_id: UUID, user_id: UUID):
+        """Disconnect user from a specific board."""
+        if board_id in self.board_connections:
+            self.board_connections[board_id].discard(websocket)
+            if not self.board_connections[board_id]:
+                del self.board_connections[board_id]
+        
+        if board_id in self.board_users:
+            self.board_users[board_id].discard(user_id)
+            if not self.board_users[board_id]:
+                del self.board_users[board_id]
+        
+        if user_id in self.user_presence:
+            del self.user_presence[user_id]
+        
+        logger.info(f"User {user_id} disconnected from board {board_id}")
+    
+    async def broadcast_to_board(self, message: dict, board_id: UUID, exclude_websocket: Optional[WebSocket] = None):
+        """Broadcast message to all users in a board."""
+        if board_id not in self.board_connections:
+            return
+        
+        disconnected = []
+        for connection in self.board_connections[board_id]:
+            if connection == exclude_websocket:
+                continue
+            
+            try:
+                if connection.client_state == WebSocketState.CONNECTED:
+                    await connection.send_json(message)
+                else:
+                    disconnected.append(connection)
+            except Exception as e:
+                logger.error(f"Error broadcasting to board {board_id}: {e}")
+                disconnected.append(connection)
+        
+        # Clean up disconnected connections
+        for conn in disconnected:
+            self.board_connections[board_id].discard(conn)
+    
+    def get_board_presence(self, board_id: UUID) -> List[Dict[str, Any]]:
+        """Get all active users in a board."""
+        if board_id not in self.board_users:
+            return []
+        
+        presence_list = []
+        for user_id in self.board_users[board_id]:
+            if user_id in self.user_presence:
+                presence_list.append(asdict(self.user_presence[user_id]))
+        
+        return presence_list
+    
+    async def update_cursor_position(self, board_id: UUID, user_id: UUID, x: float, y: float):
+        """Update user's cursor position."""
+        if user_id in self.user_presence:
+            cursor = CursorPosition(
+                x=x,
+                y=y,
+                user_id=str(user_id),
+                user_name=self.user_presence[user_id].user_name,
+                color=self.user_presence[user_id].color,
+                timestamp=datetime.utcnow().timestamp()
+            )
+            self.user_presence[user_id].cursor = cursor
+            self.user_presence[user_id].last_seen = datetime.utcnow().timestamp()
+            
+            # Broadcast cursor update to all users in the board
+            await self.broadcast_to_board(
+                {
+                    "type": "cursor_update",
+                    "data": asdict(cursor)
+                },
+                board_id
+            )
 
 
 # Global connection manager instance
@@ -357,5 +481,185 @@ async def websocket_notifications(
     except Exception as e:
         logger.error(f"WebSocket error for user {user.id}: {e}")
         manager.disconnect(websocket, user.id)
+
+
+@websocket_router.websocket("/ws/board/{board_id}")
+async def websocket_board(
+    websocket: WebSocket,
+    board_id: UUID,
+    token: str
+):
+    """
+    WebSocket endpoint for real-time board collaboration.
+    
+    Message types:
+    - cursor_move: Update cursor position
+    - board_update: Board state changes (resources, connections)
+    - presence_update: User presence status
+    - resource_update: Individual resource updates
+    - connection_update: Connection changes
+    """
+    user = await get_current_user_ws(websocket, token)
+    if not user:
+        return
+    
+    # Verify board access
+    async with get_async_session() as db:
+        board_result = await db.execute(
+            select(Board).where(
+                Board.id == board_id,
+                Board.user_id == user.id
+            )
+        )
+        board = board_result.scalar_one_or_none()
+        
+        if not board:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+    
+    # Connect to board
+    await manager.connect(websocket, user.id)
+    await manager.connect_to_board(websocket, board_id, user.id, user.email or f"User {user.id}")
+    
+    try:
+        # Send connection confirmation with current board state and presence
+        await websocket.send_json({
+            "type": "connection",
+            "data": {
+                "status": "connected",
+                "board_id": str(board_id),
+                "user_id": str(user.id),
+                "presence": manager.get_board_presence(board_id)
+            }
+        })
+        
+        # Notify other users of new presence
+        await manager.broadcast_to_board(
+            {
+                "type": "presence_join",
+                "data": {
+                    "user_id": str(user.id),
+                    "user_name": user.email or f"User {user.id}",
+                    "presence": asdict(manager.user_presence[user.id])
+                }
+            },
+            board_id,
+            exclude_websocket=websocket
+        )
+        
+        # Handle messages
+        while True:
+            data = await websocket.receive_json()
+            message_type = data.get("type")
+            message_data = data.get("data", {})
+            
+            if message_type == "ping":
+                # Heartbeat
+                await websocket.send_json({"type": "pong", "data": {}})
+                
+            elif message_type == "cursor_move":
+                # Update cursor position
+                x = message_data.get("x", 0)
+                y = message_data.get("y", 0)
+                await manager.update_cursor_position(board_id, user.id, x, y)
+                
+            elif message_type == "board_update":
+                # Broadcast board state changes
+                update_data = {
+                    "type": "board_update",
+                    "data": {
+                        "user_id": str(user.id),
+                        "timestamp": datetime.utcnow().isoformat(),
+                        **message_data
+                    }
+                }
+                
+                # Save board state to database
+                async with get_async_session() as db:
+                    board = await db.get(Board, board_id)
+                    if board:
+                        if "resources" in message_data:
+                            board.resources_data = json.dumps(message_data["resources"])
+                        if "connections" in message_data:
+                            board.connections_data = json.dumps(message_data["connections"])
+                        if "ai_chats" in message_data:
+                            board.ai_chats_data = json.dumps(message_data["ai_chats"])
+                        await db.commit()
+                
+                # Broadcast to all users
+                await manager.broadcast_to_board(update_data, board_id, exclude_websocket=websocket)
+                
+            elif message_type == "resource_update":
+                # Broadcast individual resource updates
+                await manager.broadcast_to_board(
+                    {
+                        "type": "resource_update",
+                        "data": {
+                            "user_id": str(user.id),
+                            "timestamp": datetime.utcnow().isoformat(),
+                            **message_data
+                        }
+                    },
+                    board_id,
+                    exclude_websocket=websocket
+                )
+                
+            elif message_type == "connection_update":
+                # Broadcast connection updates
+                await manager.broadcast_to_board(
+                    {
+                        "type": "connection_update",
+                        "data": {
+                            "user_id": str(user.id),
+                            "timestamp": datetime.utcnow().isoformat(),
+                            **message_data
+                        }
+                    },
+                    board_id,
+                    exclude_websocket=websocket
+                )
+                
+            elif message_type == "presence_update":
+                # Update user presence status
+                status_update = message_data.get("status", "active")
+                if user.id in manager.user_presence:
+                    manager.user_presence[user.id].status = status_update
+                    manager.user_presence[user.id].last_seen = datetime.utcnow().timestamp()
+                    
+                    await manager.broadcast_to_board(
+                        {
+                            "type": "presence_update",
+                            "data": asdict(manager.user_presence[user.id])
+                        },
+                        board_id
+                    )
+            
+            else:
+                await websocket.send_json({
+                    "type": "error",
+                    "data": {"message": f"Unknown message type: {message_type}"}
+                })
+                
+    except WebSocketDisconnect:
+        # Notify other users of disconnection
+        await manager.broadcast_to_board(
+            {
+                "type": "presence_leave",
+                "data": {
+                    "user_id": str(user.id)
+                }
+            },
+            board_id
+        )
+        
+        manager.disconnect_from_board(websocket, board_id, user.id)
+        manager.disconnect(websocket, user.id)
+        logger.info(f"User {user.id} disconnected from board {board_id}")
+    except Exception as e:
+        logger.error(f"WebSocket error for user {user.id} on board {board_id}: {e}")
+        manager.disconnect_from_board(websocket, board_id, user.id)
+        manager.disconnect(websocket, user.id)
+        if websocket.client_state == WebSocketState.CONNECTED:
+            await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
 
 

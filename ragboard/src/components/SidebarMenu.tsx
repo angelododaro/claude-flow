@@ -9,7 +9,8 @@ import {
   Share2,
   FileText,
   Folder,
-  Plus
+  Plus,
+  Box
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -73,6 +74,12 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ onAddResource }) => {
       icon: Folder,
       label: 'Add Folder',
       action: () => onAddResource('folder'),
+    },
+    {
+      id: 'frame',
+      icon: Box,
+      label: 'Add Frame',
+      action: () => onAddResource('frame'),
     },
   ];
 

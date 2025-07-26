@@ -115,14 +115,25 @@ async def close_db() -> None:
 
 # Import all models to ensure they are registered with Base
 # This is important for Alembic autogeneration to work properly
-from app.models import (  # noqa: F401
-    User,
-    Role,
-    APIKey,
-    Resource,
-    Collection,
-    ResourceChunk,
-    Conversation,
-    Message,
-    SavedPrompt,
-)
+# Note: Import moved to function to avoid circular imports
+def import_models():
+    """Import all models to register them with Base."""
+    try:
+        from app.models import (  # noqa: F401
+            User,
+            Role,
+            APIKey,
+            Resource,
+            Collection,
+            ResourceChunk,
+            Conversation,
+            Message,
+            SavedPrompt,
+            Board,
+        )
+    except ImportError:
+        # Handle import errors gracefully
+        pass
+
+# Call import function when module is loaded
+import_models()

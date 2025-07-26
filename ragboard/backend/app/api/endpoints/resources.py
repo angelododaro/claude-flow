@@ -171,6 +171,43 @@ async def add_url_resource(
     return ResourceResponse.model_validate(resource)
 
 
+@router.post("/text", response_model=ResourceResponse)
+async def add_text_resource(
+    resource_data: ResourceCreate,
+    current_user: Annotated[User, Depends(get_current_active_user)] = None,
+    db: AsyncSession = Depends(get_async_session)
+):
+    """
+    Add a text-based resource.
+    """
+    if not resource_data.content:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="content is required for text resources"
+        )
+    
+    # Create resource
+    resource = Resource(
+        name=resource_data.name,
+        description=resource_data.description,
+        resource_type=ResourceType.TEXT,
+        extracted_text=resource_data.content,
+        user_id=current_user.id,
+        collection_id=resource_data.collection_id,
+        tags=resource_data.tags or [],
+        processing_status=ProcessingStatus.COMPLETED  # Text is already extracted
+    )
+    
+    db.add(resource)
+    await db.commit()
+    await db.refresh(resource)
+    
+    # Queue for processing
+    await processing_service.queue_resource(resource.id)
+    
+    return ResourceResponse.model_validate(resource)
+
+
 @router.get("", response_model=ResourceListResponse)
 async def list_resources(
     skip: int = 0,

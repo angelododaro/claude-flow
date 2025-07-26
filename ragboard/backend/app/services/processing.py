@@ -13,6 +13,8 @@ import mimetypes
 import hashlib
 
 # Document processing imports
+import io
+
 try:
     import PyPDF2
     PDF_AVAILABLE = True
@@ -387,7 +389,3 @@ class ProcessingService:
             text = await file.read()
         
         return text, {"source": "text_file"}
-
-
-# Add missing import
-import io

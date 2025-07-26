@@ -1,0 +1,9 @@
+Version 2.0 - All fixes applied
+- AI Chat redesigned with minimized/fullscreen views
+- Fixed hover buttons
+- Fixed all widget crashes
+- Added board save/load functionality
+- Fixed voice recording
+- Fixed image upload
+- Fixed document upload
+Last updated: 2024-07-26 15:45

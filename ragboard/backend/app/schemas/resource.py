@@ -23,6 +23,7 @@ class ResourceCreate(ResourceBase):
     """Resource creation schema."""
     source_url: Optional[str] = None
     source_metadata: Optional[Dict[str, Any]] = None
+    content: Optional[str] = None  # For text resources
 
 
 class ResourceUpdate(BaseModel):

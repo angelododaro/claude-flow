@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   X, Send, Plus, Image as ImageIcon, Minimize2, Share, 
-  Sparkles, Upload, Search, Clock, MessageSquare
+  Sparkles, Upload, Search, Clock, MessageSquare, Paperclip, FileText
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useBoardStore } from '../store/boardStore';
@@ -12,22 +12,24 @@ import { Message } from '../types';
 interface AIChatFullScreenNewProps {
   chatId: string;
   onClose: () => void;
-  onMinimize: () => void;
 }
 
 export const AIChatFullScreenNew: React.FC<AIChatFullScreenNewProps> = ({
   chatId,
   onClose,
-  onMinimize,
 }) => {
   const [message, setMessage] = useState('');
   const [streamingMessage, setStreamingMessage] = useState('');
   const [selectedConversation, setSelectedConversation] = useState(chatId);
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { aiChats, addMessage, resources } = useBoardStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { aiChats, addMessage, resources, addResource } = useBoardStore();
   
   const chat = aiChats.get(selectedConversation);
   const { execute: sendMessage, loading: sending } = useApi(ApiService.sendMessage);
+  const { execute: uploadFile } = useApi(ApiService.uploadResource);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -35,26 +37,70 @@ export const AIChatFullScreenNew: React.FC<AIChatFullScreenNewProps> = ({
   }, [chat?.messages, streamingMessage]);
 
   const handleSendMessage = async () => {
-    if (!message.trim() || sending || !chat) return;
+    if ((!message.trim() && attachedFiles.length === 0) || sending || !chat) return;
 
     const userMessage = message.trim();
     setMessage('');
     
-    // Add user message to chat
-    addMessage(selectedConversation, {
-      role: 'user',
-      content: userMessage,
-    });
-
     try {
+      // Upload attached files first and add them to the board
+      const uploadedResourceIds: string[] = [];
+      if (attachedFiles.length > 0) {
+        setUploadingFiles(true);
+        
+        // Add file upload message
+        addMessage(selectedConversation, {
+          role: 'user',
+          content: userMessage || `Uploading ${attachedFiles.length} file${attachedFiles.length > 1 ? 's' : ''}...`,
+        });
+        
+        for (const file of attachedFiles) {
+          try {
+            const resource = await uploadFile(file);
+            uploadedResourceIds.push(resource.id);
+            
+            // Add the uploaded file as a resource to the board
+            const resourceType = file.type.startsWith('image/') ? 'image' : 'document';
+            addResource({
+              type: resourceType,
+              title: resource.name || file.name,
+              url: resource.file_path,
+              metadata: {
+                fileName: file.name,
+                fileSize: file.size,
+                mimeType: file.type,
+                resourceId: resource.id,
+                ...resource.metadata
+              },
+              position: { x: Math.random() * 500 + 100, y: Math.random() * 300 + 100 }
+            });
+          } catch (error) {
+            console.error('Error uploading file:', error);
+          }
+        }
+        setUploadingFiles(false);
+        setAttachedFiles([]);
+      }
+      
+      // Add user message to chat if there's text
+      if (userMessage) {
+        addMessage(selectedConversation, {
+          role: 'user',
+          content: userMessage,
+        });
+      }
+
+      // Combine existing connected resources with newly uploaded ones
+      const allResourceIds = [...chat.connectedResources, ...uploadedResourceIds];
+
       // Start streaming response
       setStreamingMessage('');
       let fullMessage = '';
       
       await ApiService.streamMessage(
         selectedConversation,
-        userMessage,
-        chat.connectedResources,
+        userMessage || 'Please analyze the uploaded files',
+        allResourceIds,
         (chunk) => {
           fullMessage += chunk;
           setStreamingMessage(fullMessage);
@@ -78,10 +124,29 @@ export const AIChatFullScreenNew: React.FC<AIChatFullScreenNewProps> = ({
     }
   };
 
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (droppedFiles.length > 0) {
+      setAttachedFiles([...attachedFiles, ...droppedFiles]);
+    }
+  }, [attachedFiles]);
+
   if (!chat) return null;
 
   return (
-    <div className="fixed inset-0 bg-white z-50 flex flex-col">
+    <div 
+      className="fixed inset-0 bg-white z-50 flex flex-col"
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       {/* Header */}
       <div className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6">
         <div className="flex items-center gap-4">
@@ -110,18 +175,11 @@ export const AIChatFullScreenNew: React.FC<AIChatFullScreenNewProps> = ({
             Refer & Earn $70 💰
           </button>
           <button
-            onClick={onMinimize}
+            onClick={onClose}
             className="p-1.5 hover:bg-gray-100 rounded transition-colors"
             title="Minimize chat"
           >
             <Minimize2 className="w-5 h-5 text-gray-600" />
-          </button>
-          <button
-            onClick={onClose}
-            className="p-1.5 hover:bg-gray-100 rounded transition-colors"
-            title="Close"
-          >
-            <X className="w-5 h-5 text-gray-600" />
           </button>
         </div>
       </div>
@@ -223,19 +281,25 @@ export const AIChatFullScreenNew: React.FC<AIChatFullScreenNewProps> = ({
                   disabled={sending}
                 />
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept="image/*,application/pdf,.doc,.docx,.txt"
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || []);
+                      setAttachedFiles([...attachedFiles, ...files]);
+                      e.target.value = '';
+                    }}
+                    className="hidden"
+                  />
                   <button
                     type="button"
+                    onClick={() => fileInputRef.current?.click()}
                     className="p-1.5 hover:bg-gray-100 rounded transition-colors"
-                    title="Upload image"
+                    title="Attach files"
                   >
-                    <ImageIcon className="w-4 h-4 text-gray-500" />
-                  </button>
-                  <button
-                    type="button"
-                    className="p-1.5 hover:bg-gray-100 rounded transition-colors"
-                    title="Attach file"
-                  >
-                    <Upload className="w-4 h-4 text-gray-500" />
+                    <Paperclip className="w-4 h-4 text-gray-500" />
                   </button>
                 </div>
               </div>
@@ -252,6 +316,29 @@ export const AIChatFullScreenNew: React.FC<AIChatFullScreenNewProps> = ({
                 <Send className="w-5 h-5" />
               </button>
             </form>
+            
+            {/* Attached files display */}
+            {attachedFiles.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {attachedFiles.map((file, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-md text-sm"
+                  >
+                    <FileText className="w-4 h-4 text-gray-500" />
+                    <span className="text-gray-700 truncate max-w-xs">{file.name}</span>
+                    <button
+                      onClick={() => {
+                        setAttachedFiles(attachedFiles.filter((_, i) => i !== index));
+                      }}
+                      className="text-gray-500 hover:text-red-600"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
             
             {/* Bottom toolbar */}
             <div className="mt-3 flex items-center justify-between">

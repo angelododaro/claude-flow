@@ -49,6 +49,7 @@ export const AddResourceModal: React.FC<AddResourceModalProps> = ({
   const [files, setFiles] = useState<File[]>([]);
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
+  const recordingStartTime = useRef<number>(0);
   
   const { execute: uploadFile, loading: uploading } = useApi(ApiService.uploadResource);
   const { execute: processUrl, loading: processingUrl } = useApi(ApiService.processURL);
@@ -61,20 +62,53 @@ export const AddResourceModal: React.FC<AddResourceModalProps> = ({
       if (type === 'url' || type === 'web') {
         if (!url || !title) return;
         const resource = await processUrl(url, platform);
-        onAdd(resource);
+        onAdd({
+          type: 'url',
+          title: resource.name || title,
+          url: resource.source_url || url,
+          metadata: {
+            platform,
+            ...resource.metadata
+          }
+        });
       } else if (type === 'text') {
         if (!title || !content) return;
         const resource = await processText(title, content);
-        onAdd(resource);
+        onAdd({
+          type: 'text',
+          title: resource.name || title,
+          content: resource.content || content,
+          metadata: resource.metadata || {}
+        });
       } else if (type === 'voice' && audioChunks.current.length > 0) {
         const audioBlob = new Blob(audioChunks.current, { type: 'audio/webm' });
-        const audioFile = new File([audioBlob], 'recording.webm', { type: 'audio/webm' });
+        const audioFile = new File([audioBlob], `voice-recording-${Date.now()}.webm`, { type: 'audio/webm' });
         const resource = await uploadFile(audioFile);
-        onAdd(resource);
+        onAdd({
+          type: 'audio',
+          title: resource.name || 'Voice Recording',
+          url: resource.file_path,
+          metadata: {
+            duration: Math.floor((Date.now() - recordingStartTime.current) / 1000),
+            mimeType: 'audio/webm',
+            fileSize: audioFile.size,
+            ...resource.metadata
+          }
+        });
       } else if (type === 'documents' && files.length > 0) {
         for (const file of files) {
           const resource = await uploadFile(file);
-          onAdd(resource);
+          onAdd({
+            type: 'document',
+            title: resource.name || file.name,
+            url: resource.file_path,
+            metadata: {
+              fileName: file.name,
+              fileSize: file.size,
+              mimeType: file.type,
+              ...resource.metadata
+            }
+          });
         }
       }
       
@@ -87,6 +121,7 @@ export const AddResourceModal: React.FC<AddResourceModalProps> = ({
       onClose();
     } catch (error) {
       console.error('Error processing resource:', error);
+      alert('Failed to upload resource. Please try again.');
     }
   }, [type, url, title, content, platform, files, onAdd, onClose, processUrl, processText, uploadFile]);
 
@@ -96,17 +131,20 @@ export const AddResourceModal: React.FC<AddResourceModalProps> = ({
         const resource = await uploadFile(file);
         onAdd({
           type: 'image',
-          title: file.name,
+          title: resource.name || file.name,
+          url: resource.file_path,
           metadata: {
             fileName: file.name,
             fileSize: file.size,
             mimeType: file.type,
+            ...resource.metadata
           },
         });
       }
       onClose();
     } catch (error) {
       console.error('Error uploading images:', error);
+      alert('Failed to upload images. Please try again.');
     }
   }, [uploadFile, onAdd, onClose]);
 
@@ -131,6 +169,7 @@ export const AddResourceModal: React.FC<AddResourceModalProps> = ({
         };
         
         mediaRecorder.current.start();
+        recordingStartTime.current = Date.now();
         setIsRecording(true);
       } catch (error) {
         console.error('Error starting recording:', error);
