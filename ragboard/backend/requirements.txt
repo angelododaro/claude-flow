@@ -42,9 +42,9 @@ cachetools==5.3.1
 cryptography==41.0.7
 
 # OAuth and Authentication
-python-social-auth[fastapi]==0.21.1
+# python-social-auth[fastapi]==0.21.1  # Not available, using authlib instead
 authlib==1.2.1
-fastapi-oauth==0.4.2
+# fastapi-oauth==0.4.2  # Not available
 
 # Subscription and Billing
 stripe==7.8.0
