@@ -52,6 +52,13 @@ class Settings(BaseSettings):
     anthropic_api_key: Optional[str] = None
     default_ai_model: str = "gpt-4-turbo-preview"
     
+    # External API Keys (Optional)
+    youtube_api_key: Optional[str] = None
+    meta_ads_access_token: Optional[str] = None
+    twitter_bearer_token: Optional[str] = None
+    reddit_client_id: Optional[str] = None
+    reddit_client_secret: Optional[str] = None
+    
     # Feature flags for optional services
     enable_ai_features: bool = True  # Can be disabled if no API keys
     enable_pinecone: bool = False  # Disabled by default, use ChromaDB
@@ -108,6 +115,31 @@ class Settings(BaseSettings):
     rate_limit_enabled: bool = True
     rate_limit_per_minute: int = 60
     rate_limit_per_hour: int = 1000
+    
+    # OAuth Settings
+    google_oauth_client_id: Optional[str] = None
+    google_oauth_client_secret: Optional[str] = None
+    github_oauth_client_id: Optional[str] = None
+    github_oauth_client_secret: Optional[str] = None
+    oauth_redirect_url: str = "http://localhost:5173/auth/callback"
+    
+    # Stripe Settings
+    stripe_publishable_key: Optional[str] = None
+    stripe_secret_key: Optional[str] = None
+    stripe_webhook_secret: Optional[str] = None
+    stripe_price_id_basic: Optional[str] = None
+    stripe_price_id_pro: Optional[str] = None
+    stripe_price_id_enterprise: Optional[str] = None
+    
+    # Subscription Settings
+    free_tier_credits: int = 100
+    basic_tier_credits: int = 1000
+    pro_tier_credits: int = 10000
+    enterprise_tier_credits: int = 100000
+    
+    # Referral System
+    referral_credit_bonus: int = 100
+    referrer_credit_bonus: int = 50
     
     @field_validator("allowed_extensions", mode="before")
     @classmethod

@@ -15,6 +15,7 @@ import { FolderNode } from './FolderNode';
 import { TextNode } from './TextNode';
 import URLNode from './URLNode';
 import { FrameNode } from './FrameNode';
+import { VideoNode } from './VideoNode';
 import { ConnectionLine } from './ConnectionLine';
 import { SidebarMenu } from './SidebarMenu';
 import { AddResourceModal } from './AddResourceModal';
@@ -26,10 +27,17 @@ import { AIChatMinimized } from './AIChatMinimized';
 import { BoardHeader } from './BoardHeader';
 import { EnhancedMiniMap } from './EnhancedMiniMap';
 import { SceneNavigator } from './SceneNavigator';
+import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
+import { AdsLibraryTool } from './AdsLibraryTool';
+import { ExploreTool } from './ExploreTool';
+import { AnnotationNode } from './AnnotationNode';
+import { ShareTool } from './ShareTool';
+import { AdvancedShapesTool } from './AdvancedShapesTool';
+import { MetaAdNode } from './MetaAdNode';
+import { TrendingContentNode } from './TrendingContentNode';
+import { ShapeNode } from './ShapeNode';
 import { useUndoRedo, createNodeCommand, deleteNodeCommand, moveNodeCommand, updateNodeCommand } from '../hooks/useUndoRedo';
 import { useKeyboardShortcuts, createCanvasShortcuts } from '../hooks/useKeyboardShortcuts';
-import CursorTracker from './CursorTracker';
-import PresenceIndicator from './PresenceIndicator';
 import wsService from '../services/websocket';
 import { Header } from './Header';
 import { Resource, Folder, Connection, Node, Edge, FlowConnection, NodeTypes, EdgeTypes } from '../types';
@@ -42,6 +50,11 @@ const nodeTypes: NodeTypes = {
   textNode: TextNode,
   urlNode: URLNode,
   frameNode: FrameNode,
+  videoNode: VideoNode,
+  annotationNode: AnnotationNode,
+  metaAdNode: MetaAdNode,
+  trendingContentNode: TrendingContentNode,
+  shapeNode: ShapeNode,
 };
 
 // Define custom edge types
@@ -71,8 +84,11 @@ export const BoardCanvas: React.FC = () => {
   const [clipboard, setClipboard] = useState<Node[]>([]);
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [currentSceneId, setCurrentSceneId] = useState<string | null>(null);
-  const [currentUserId] = useState(() => 'user-' + Math.random().toString(36).substr(2, 9));
-  const [isCollaborationEnabled, setIsCollaborationEnabled] = useState(false);
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+  const [showAdsLibrary, setShowAdsLibrary] = useState(false);
+  const [showExploreTool, setShowExploreTool] = useState(false);
+  const [showShareTool, setShowShareTool] = useState(false);
+  const [showAdvancedShapes, setShowAdvancedShapes] = useState(false);
   
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const reactFlowInstance = useReactFlow();
@@ -83,7 +99,6 @@ export const BoardCanvas: React.FC = () => {
   // Initialize WebSocket connection for real-time collaboration
   useEffect(() => {
     wsService.connect(boardId);
-    setIsCollaborationEnabled(true);
     
     // Set up WebSocket event listeners for board updates
     const handleBoardUpdate = (data: any) => {
@@ -129,7 +144,6 @@ export const BoardCanvas: React.FC = () => {
     
     return () => {
       wsService.disconnect();
-      setIsCollaborationEnabled(false);
     };
   }, [boardId, updateResource]);
 
@@ -151,12 +165,18 @@ export const BoardCanvas: React.FC = () => {
       id: resource.id,
       type: resource.type === 'folder' ? 'folderNode' : 
             resource.type === 'text' ? 'textNode' : 
-            resource.type === 'url' ? 'urlNode' : 'resourceNode',
+            resource.type === 'url' ? 'urlNode' :
+            resource.type === 'video' ? 'videoNode' :
+            resource.type === 'annotation' ? 'annotationNode' :
+            resource.type === 'meta-ad' ? 'metaAdNode' :
+            resource.type === 'trending-content' ? 'trendingContentNode' :
+            resource.type === 'shape' ? 'shapeNode' : 'resourceNode',
       position: resource.position,
       data: {
         ...resource,
         onDelete: deleteResource,
         onToggle: resource.type === 'folder' ? toggleFolder : undefined,
+        onUpdate: resource.type === 'annotation' ? updateResource : undefined,
       },
     }));
 
@@ -260,6 +280,9 @@ export const BoardCanvas: React.FC = () => {
         position: { x: Math.random() * 500 + 100, y: Math.random() * 300 + 100 },
         metadata: {
           content: 'Double-click to edit this text...',
+          richContent: '<p>Double-click to start writing with rich text formatting...</p>',
+          isRichText: true,
+          theme: 'light',
         },
       };
       const resourceId = addResource(textBox);
@@ -292,12 +315,127 @@ export const BoardCanvas: React.FC = () => {
         (nodeId) => deleteResource(nodeId)
       );
       undoRedo.execute(command);
+    } else if (type === 'ads-library') {
+      setShowAdsLibrary(true);
+    } else if (type === 'explore') {
+      setShowExploreTool(true);
+    } else if (type === 'annotation') {
+      // Create annotation directly
+      const annotation: Omit<Resource, 'id' | 'createdAt' | 'updatedAt'> = {
+        type: 'annotation' as any,
+        title: 'New Annotation',
+        position: { x: Math.random() * 500 + 100, y: Math.random() * 300 + 100 },
+        metadata: {
+          annotationType: 'text',
+          content: 'Edit this annotation...',
+          style: {
+            color: '#000000',
+            backgroundColor: '#ffffff',
+            borderColor: '#333333',
+            fontSize: 14,
+            fontWeight: 'normal',
+            opacity: 1,
+            borderWidth: 2,
+            borderStyle: 'solid',
+            rotation: 0,
+          },
+          dimensions: { width: 200, height: 100 },
+        },
+      };
+      const resourceId = addResource(annotation);
+      
+      const command = createNodeCommand(
+        { id: resourceId, ...annotation } as any,
+        () => addResource(annotation),
+        (nodeId) => deleteResource(nodeId)
+      );
+      undoRedo.execute(command);
+    } else if (type === 'shapes') {
+      setShowAdvancedShapes(true);
+    } else if (type === 'share') {
+      setShowShareTool(true);
     } else {
       // Open modal for other types
       setModalType(type);
       setModalOpen(true);
     }
   }, [createAIChat, addResource, deleteResource, setSelectedChatId, setChatMode, undoRedo]);
+
+  // Handle ads library content addition
+  const handleAddAd = useCallback((ad: any) => {
+    const adResource: Omit<Resource, 'id' | 'createdAt' | 'updatedAt'> = {
+      type: 'meta-ad' as any,
+      title: ad.ad_creative_link_titles?.[0] || 'Meta Ad',
+      position: { x: Math.random() * 500 + 100, y: Math.random() * 300 + 100 },
+      metadata: {
+        adData: ad,
+        adId: ad.ad_id,
+        pageName: ad.page_name,
+        platforms: ad.publisher_platforms,
+        snapshotUrl: ad.ad_snapshot_url,
+      },
+    };
+    const resourceId = addResource(adResource);
+    
+    const command = createNodeCommand(
+      { id: resourceId, ...adResource } as any,
+      () => addResource(adResource),
+      (nodeId) => deleteResource(nodeId)
+    );
+    undoRedo.execute(command);
+    setShowAdsLibrary(false);
+  }, [addResource, deleteResource, undoRedo]);
+
+  // Handle trending content addition
+  const handleAddTrendingContent = useCallback((content: any) => {
+    const contentResource: Omit<Resource, 'id' | 'createdAt' | 'updatedAt'> = {
+      type: 'trending-content' as any,
+      title: content.title,
+      position: { x: Math.random() * 500 + 100, y: Math.random() * 300 + 100 },
+      metadata: {
+        contentData: content,
+        platform: content.platform,
+        category: content.category,
+        trendingScore: content.trending_score,
+        url: content.url,
+        thumbnail: content.thumbnail,
+      },
+    };
+    const resourceId = addResource(contentResource);
+    
+    const command = createNodeCommand(
+      { id: resourceId, ...contentResource } as any,
+      () => addResource(contentResource),
+      (nodeId) => deleteResource(nodeId)
+    );
+    undoRedo.execute(command);
+    setShowExploreTool(false);
+  }, [addResource, deleteResource, undoRedo]);
+
+  // Handle advanced shape addition
+  const handleAddShape = useCallback((shape: any) => {
+    const shapeResource: Omit<Resource, 'id' | 'createdAt' | 'updatedAt'> = {
+      type: 'shape' as any,
+      title: shape.name,
+      position: { x: Math.random() * 500 + 100, y: Math.random() * 300 + 100 },
+      metadata: {
+        shapeData: shape,
+        shapeType: shape.type,
+        style: shape.style,
+        size: shape.size,
+        category: shape.category,
+      },
+    };
+    const resourceId = addResource(shapeResource);
+    
+    const command = createNodeCommand(
+      { id: resourceId, ...shapeResource } as any,
+      () => addResource(shapeResource),
+      (nodeId) => deleteResource(nodeId)
+    );
+    undoRedo.execute(command);
+    setShowAdvancedShapes(false);
+  }, [addResource, deleteResource, undoRedo]);
 
   // Handle modal add with undo/redo
   const handleModalAdd = useCallback((data: any) => {
@@ -439,6 +577,7 @@ export const BoardCanvas: React.FC = () => {
       addTextNode: () => handleAddResource('text'),
       addFolderNode: () => handleAddResource('folder'),
       addChatNode: () => handleAddResource('chat'),
+      showHelp: () => setShowKeyboardHelp(true),
     }),
     enabled: true,
   });
@@ -481,16 +620,6 @@ export const BoardCanvas: React.FC = () => {
           <EnhancedMiniMap />
           </ReactFlow>
           
-          {/* Real-time collaboration features */}
-          {isCollaborationEnabled && (
-            <>
-              <CursorTracker 
-                containerRef={reactFlowWrapper}
-                currentUserId={currentUserId}
-              />
-              <PresenceIndicator currentUserId={currentUserId} />
-            </>
-          )}
           
           {/* Scene Navigator */}
           <SceneNavigator
@@ -542,6 +671,39 @@ export const BoardCanvas: React.FC = () => {
             setSelectedChatId(null);
           }}
           onMinimize={() => setChatMode('minimized')}
+        />
+      )}
+      
+      {/* Keyboard Shortcuts Help */}
+      <KeyboardShortcutsHelp />
+
+      {/* New Tool Modals */}
+      {showAdsLibrary && (
+        <AdsLibraryTool
+          onAddAd={handleAddAd}
+          onClose={() => setShowAdsLibrary(false)}
+        />
+      )}
+
+      {showExploreTool && (
+        <ExploreTool
+          onAddContent={handleAddTrendingContent}
+          onClose={() => setShowExploreTool(false)}
+        />
+      )}
+
+      {showShareTool && (
+        <ShareTool
+          boardId={boardId}
+          boardName={boardName}
+          onClose={() => setShowShareTool(false)}
+        />
+      )}
+
+      {showAdvancedShapes && (
+        <AdvancedShapesTool
+          onAddShape={handleAddShape}
+          onClose={() => setShowAdvancedShapes(false)}
         />
       )}
     </div>

@@ -575,16 +575,23 @@ async def websocket_board(
                 }
                 
                 # Save board state to database
-                async with get_async_session() as db:
-                    board = await db.get(Board, board_id)
-                    if board:
-                        if "resources" in message_data:
-                            board.resources_data = json.dumps(message_data["resources"])
-                        if "connections" in message_data:
-                            board.connections_data = json.dumps(message_data["connections"])
-                        if "ai_chats" in message_data:
-                            board.ai_chats_data = json.dumps(message_data["ai_chats"])
-                        await db.commit()
+                try:
+                    async with get_async_session() as db:
+                        board = await db.get(Board, board_id)
+                        if board:
+                            if "resources" in message_data:
+                                board.resources_data = json.dumps(message_data["resources"])
+                            if "connections" in message_data:
+                                board.connections_data = json.dumps(message_data["connections"])
+                            if "ai_chats" in message_data:
+                                board.ai_chats_data = json.dumps(message_data["ai_chats"])
+                            await db.commit()
+                except Exception as e:
+                    logger.error(f"Error saving board state: {e}")
+                    await websocket.send_json({
+                        "type": "error",
+                        "data": {"message": "Failed to save board state"}
+                    })
                 
                 # Broadcast to all users
                 await manager.broadcast_to_board(update_data, board_id, exclude_websocket=websocket)

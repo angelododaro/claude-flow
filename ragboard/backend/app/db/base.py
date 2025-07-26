@@ -130,6 +130,11 @@ def import_models():
             Message,
             SavedPrompt,
             Board,
+            Comment,
+            CommentLike,
+            CommentThread,
+            Notification,
+            NotificationPreference,
         )
     except ImportError:
         # Handle import errors gracefully

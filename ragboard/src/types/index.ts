@@ -21,7 +21,7 @@ export interface ResourceMetadata {
 
 export interface Resource {
   id: string;
-  type: 'video' | 'image' | 'text' | 'pdf' | 'url' | 'audio' | 'document' | 'folder' | 'link' | 'frame';
+  type: 'video | image | text | pdf | url | audio | document | folder | link | frame | annotation | meta-ad | trending-content | shape';
   title: string;
   description?: string;
   url?: string;

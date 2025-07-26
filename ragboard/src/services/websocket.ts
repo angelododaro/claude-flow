@@ -115,14 +115,23 @@ class WebSocketService extends EventEmitter {
     }
 
     this.currentBoardId = boardId;
-    const token = localStorage.getItem('auth_token');
-    const url = `${this.wsUrl}/board/${boardId}?token=${token}`;
+    const token = localStorage.getItem('auth_token') || localStorage.getItem('access_token');
+    
+    if (!token) {
+      console.error('No authentication token found. WebSocket connection cannot be established.');
+      this.emit('error', { message: 'Authentication required for collaboration features' });
+      return;
+    }
+
+    const url = `${this.wsUrl}/board/${boardId}?token=${encodeURIComponent(token)}`;
 
     try {
+      console.log(`Connecting to WebSocket at: ${this.wsUrl}/board/${boardId}`);
       this.ws = new WebSocket(url);
       this.setupEventHandlers();
     } catch (error) {
       console.error('Failed to create WebSocket connection:', error);
+      this.emit('error', { message: 'Failed to establish WebSocket connection', error });
       this.scheduleReconnect();
     }
   }

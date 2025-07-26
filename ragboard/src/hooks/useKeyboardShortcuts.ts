@@ -90,6 +90,7 @@ export const createCanvasShortcuts = (actions: {
   addChatNode?: () => void;
   search?: () => void;
   save?: () => void;
+  showHelp?: () => void;
 }): KeyboardShortcut[] => {
   const shortcuts: KeyboardShortcut[] = [];
 
@@ -250,6 +251,14 @@ export const createCanvasShortcuts = (actions: {
       modifiers: { ctrl: true },
       action: actions.save,
       description: 'Save',
+    });
+  }
+
+  if (actions.showHelp) {
+    shortcuts.push({
+      key: '?',
+      action: actions.showHelp,
+      description: 'Show help',
     });
   }
 

@@ -33,6 +33,7 @@ import { AudioRecordingSection } from './AudioRecordingSection';
 import { ImageDropzone } from './ImageDropzone';
 import { SocialContentInput } from './SocialContentInput';
 import { URLInput } from './URLInput';
+import { VideoInput } from './VideoInput';
 
 export const AddResourceModal: React.FC<AddResourceModalProps> = ({
   isOpen,
@@ -207,6 +208,7 @@ export const AddResourceModal: React.FC<AddResourceModalProps> = ({
             {type === 'voice' && 'Record Voice'}
             {type === 'image' && 'Add Images'}
             {type === 'documents' && 'Upload Documents'}
+            {type === 'video' && 'Add Video'}
           </h2>
           <button
             onClick={onClose}
@@ -230,6 +232,15 @@ export const AddResourceModal: React.FC<AddResourceModalProps> = ({
           {type === 'web' && (
             <div className="space-y-4">
               <URLInput onAdd={(data) => {
+                onAdd(data);
+                onClose();
+              }} />
+            </div>
+          )}
+
+          {type === 'video' && (
+            <div className="space-y-4">
+              <VideoInput onAdd={(data) => {
                 onAdd(data);
                 onClose();
               }} />

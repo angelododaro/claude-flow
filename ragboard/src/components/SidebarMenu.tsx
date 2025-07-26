@@ -10,7 +10,12 @@ import {
   FileText,
   Folder,
   Plus,
-  Box
+  Box,
+  Video,
+  TrendingUp,
+  Search,
+  Shapes,
+  Edit3
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -44,6 +49,12 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ onAddResource }) => {
       icon: Image,
       label: 'Add Image',
       action: () => onAddResource('image'),
+    },
+    {
+      id: 'video',
+      icon: Video,
+      label: 'Add Video',
+      action: () => onAddResource('video'),
     },
     {
       id: 'text',
@@ -80,6 +91,36 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ onAddResource }) => {
       icon: Box,
       label: 'Add Frame',
       action: () => onAddResource('frame'),
+    },
+    {
+      id: 'ads-library',
+      icon: Search,
+      label: 'Meta Ads Library',
+      action: () => onAddResource('ads-library'),
+    },
+    {
+      id: 'explore',
+      icon: TrendingUp,
+      label: 'Explore Trending',
+      action: () => onAddResource('explore'),
+    },
+    {
+      id: 'annotation',
+      icon: Edit3,
+      label: 'Add Annotation',
+      action: () => onAddResource('annotation'),
+    },
+    {
+      id: 'shapes',
+      icon: Shapes,
+      label: 'Advanced Shapes',
+      action: () => onAddResource('shapes'),
+    },
+    {
+      id: 'share',
+      icon: Share2,
+      label: 'Share Board',
+      action: () => onAddResource('share'),
     },
   ];
 

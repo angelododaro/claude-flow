@@ -83,6 +83,40 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan"
     )
+    comments: Mapped[List["Comment"]] = relationship(
+        "Comment",
+        foreign_keys="Comment.author_id",
+        back_populates="author",
+        cascade="all, delete-orphan"
+    )
+    notifications: Mapped[List["Notification"]] = relationship(
+        "Notification",
+        foreign_keys="Notification.recipient_id",
+        back_populates="recipient",
+        cascade="all, delete-orphan"
+    )
+    notification_preferences: Mapped[List["NotificationPreference"]] = relationship(
+        "NotificationPreference",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )
+    
+    # Subscription relationships
+    subscription: Mapped[Optional["Subscription"]] = relationship(
+        "Subscription",
+        back_populates="user",
+        uselist=False
+    )
+    owned_teams: Mapped[List["Team"]] = relationship(
+        "Team",
+        foreign_keys="Team.owner_id",
+        back_populates="owner"
+    )
+    
+    # OAuth providers
+    oauth_providers: Mapped[Optional[dict]] = mapped_column(
+        Text, nullable=True
+    )  # JSON stored as text for provider info
     
     def __repr__(self) -> str:
         return f"<User {self.username}>"

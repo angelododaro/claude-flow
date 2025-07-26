@@ -113,6 +113,11 @@ class Resource(Base):
         back_populates="resource",
         cascade="all, delete-orphan"
     )
+    comments: Mapped[List["Comment"]] = relationship(
+        "Comment",
+        back_populates="resource",
+        cascade="all, delete-orphan"
+    )
     
     def __repr__(self) -> str:
         return f"<Resource {self.name} ({self.resource_type})>"

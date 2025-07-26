@@ -20,6 +20,19 @@ from app.models.conversation import (
     ConversationType
 )
 from app.models.board import Board
+from app.models.comment import (
+    Comment,
+    CommentLike,
+    CommentThread,
+    CommentType,
+    CommentStatus
+)
+from app.models.notification import (
+    Notification,
+    NotificationPreference,
+    NotificationType,
+    NotificationPriority
+)
 
 # Export all models
 __all__ = [
@@ -44,4 +57,17 @@ __all__ = [
     
     # Board models
     "Board",
+    
+    # Comment models
+    "Comment",
+    "CommentLike", 
+    "CommentThread",
+    "CommentType",
+    "CommentStatus",
+    
+    # Notification models
+    "Notification",
+    "NotificationPreference",
+    "NotificationType",
+    "NotificationPriority",
 ]
