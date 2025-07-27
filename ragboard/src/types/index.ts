@@ -3,9 +3,7 @@ import type * as React from 'react';
 import type { 
   Node as ReactFlowNode,
   Edge as ReactFlowEdge,
-  Connection as ReactFlowConnection,
-  NodeProps as ReactFlowNodeProps,
-  EdgeProps as ReactFlowEdgeProps
+  Connection as ReactFlowConnection
 } from '@xyflow/react';
 
 // Export all our custom types
@@ -83,9 +81,34 @@ export interface BoardState {
 export type Node = ReactFlowNode;
 export type Edge = ReactFlowEdge;
 export type FlowConnection = ReactFlowConnection;
-export type NodeProps<T = any> = ReactFlowNodeProps<T>;
-export type EdgeProps<T = any> = ReactFlowEdgeProps<T>;
+
+// Define NodeProps and EdgeProps for v12 compatibility
+export type NodeProps<T = any> = {
+  data: T;
+  id: string;
+  selected?: boolean;
+  type?: string;
+  xPos: number;
+  yPos: number;
+  dragging?: boolean;
+  zIndex?: number;
+};
+
+export type EdgeProps<T = any> = {
+  data?: T;
+  id: string;
+  source: string;
+  target: string;
+  sourceX: number;
+  sourceY: number;
+  targetX: number;
+  targetY: number;
+  selected?: boolean;
+  animated?: boolean;
+  sourcePosition?: string;
+  targetPosition?: string;
+};
 
 // NodeTypes and EdgeTypes need to be defined manually for v12
-export type NodeTypes = Record<string, React.ComponentType<ReactFlowNodeProps>>;
+export type NodeTypes = Record<string, React.ComponentType<any>>;
 export type EdgeTypes = Record<string, React.ComponentType<ReactFlowEdgeProps>>;
