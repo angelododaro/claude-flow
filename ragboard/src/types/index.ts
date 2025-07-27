@@ -112,3 +112,16 @@ export type EdgeProps<T = any> = {
 // NodeTypes and EdgeTypes need to be defined manually for v12
 export type NodeTypes = Record<string, React.ComponentType<any>>;
 export type EdgeTypes = Record<string, React.ComponentType<ReactFlowEdgeProps>>;
+
+// User and Auth types for CASL
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: 'admin' | 'owner' | 'collaborator' | 'viewer' | 'guest';
+  ownedBoardIds?: string[];
+  collaboratorBoardIds?: string[];
+  viewerBoardIds?: string[];
+  createdAt?: Date;
+  updatedAt?: Date;
+}

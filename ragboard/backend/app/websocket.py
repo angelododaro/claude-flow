@@ -159,6 +159,40 @@ class ConnectionManager:
         for conn in disconnected:
             self.board_connections[board_id].discard(conn)
     
+    async def broadcast_notification(self, user_ids: List[UUID], notification: dict):
+        """Broadcast notification to specific users."""
+        message = {
+            "type": "notification",
+            "data": notification
+        }
+        
+        for user_id in user_ids:
+            await self.send_personal_message(message, user_id)
+    
+    async def update_user_activity(self, user_id: UUID, activity_type: str, details: dict):
+        """Track and broadcast user activity."""
+        if user_id not in self.user_presence:
+            return
+        
+        activity = {
+            "user_id": str(user_id),
+            "user_name": self.user_presence[user_id].user_name,
+            "activity_type": activity_type,
+            "timestamp": datetime.utcnow().timestamp(),
+            **details
+        }
+        
+        # Find all boards this user is connected to
+        for board_id, users in self.board_users.items():
+            if user_id in users:
+                await self.broadcast_to_board(
+                    {
+                        "type": "user_activity",
+                        "data": activity
+                    },
+                    board_id
+                )
+    
     def get_board_presence(self, board_id: UUID) -> List[Dict[str, Any]]:
         """Get all active users in a board."""
         if board_id not in self.board_users:
@@ -640,6 +674,28 @@ async def websocket_board(
                         },
                         board_id
                     )
+            
+            elif message_type == "selection_update":
+                # Broadcast selection changes for collaborative awareness
+                await manager.broadcast_to_board(
+                    {
+                        "type": "selection_update",
+                        "data": {
+                            "user_id": str(user.id),
+                            "user_name": user.email or f"User {user.id}",
+                            "color": manager.user_presence[user.id].color if user.id in manager.user_presence else "#999",
+                            "selection": message_data.get("selection", None)
+                        }
+                    },
+                    board_id,
+                    exclude_websocket=websocket
+                )
+                
+            elif message_type == "activity":
+                # Track user activity (typing, editing, etc.)
+                activity_type = message_data.get("activity_type")
+                details = message_data.get("details", {})
+                await manager.update_user_activity(user.id, activity_type, details)
             
             else:
                 await websocket.send_json({

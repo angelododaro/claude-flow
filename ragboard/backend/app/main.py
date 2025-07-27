@@ -12,6 +12,7 @@ import logging
 from app.core.config import settings
 from app.api.v1.api import api_router
 from app.websocket import websocket_router
+from app.yjs_websocket import yjs_router
 
 # Configure logging
 logging.basicConfig(
@@ -75,6 +76,7 @@ app.mount("/uploads", StaticFiles(directory=str(settings.upload_dir)), name="upl
 # Include API routers
 app.include_router(api_router, prefix=settings.api_v1_prefix)
 app.include_router(websocket_router)
+app.include_router(yjs_router)
 
 # Root endpoint
 @app.get("/")

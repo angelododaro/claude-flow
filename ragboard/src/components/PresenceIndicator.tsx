@@ -1,121 +1,219 @@
 import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import wsService, { UserPresence } from '../services/websocket';
+import wsService, { UserPresence, CursorPosition } from '../services/websocket';
+import './PresenceIndicator.css';
 
 interface PresenceIndicatorProps {
-  currentUserId: string;
+  boardId: string;
+  currentUserId?: string;
 }
 
-const PresenceIndicator: React.FC<PresenceIndicatorProps> = ({ currentUserId }) => {
-  const [activeUsers, setActiveUsers] = useState<UserPresence[]>([]);
+interface CursorProps {
+  cursor: CursorPosition;
+  isVisible: boolean;
+}
 
-  useEffect(() => {
-    const updatePresence = () => {
-      const presence = wsService.getPresence();
-      const users = Array.from(presence.values())
-        .filter(user => user.user_id !== currentUserId)
-        .sort((a, b) => a.user_name.localeCompare(b.user_name));
-      setActiveUsers(users);
-    };
-
-    // Initial update
-    updatePresence();
-
-    // WebSocket event handlers
-    const handlePresenceUpdate = () => {
-      updatePresence();
-    };
-
-    wsService.onPresenceJoin(handlePresenceUpdate);
-    wsService.onPresenceLeave(handlePresenceUpdate);
-    wsService.onPresenceUpdate(handlePresenceUpdate);
-
-    return () => {
-      wsService.off('presence_join', handlePresenceUpdate);
-      wsService.off('presence_leave', handlePresenceUpdate);
-      wsService.off('presence_update', handlePresenceUpdate);
-    };
-  }, [currentUserId]);
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'active':
-        return (
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-        );
-      case 'idle':
-        return (
-          <div className="w-2 h-2 bg-yellow-500 rounded-full" />
-        );
-      case 'away':
-        return (
-          <div className="w-2 h-2 bg-gray-400 rounded-full" />
-        );
-      default:
-        return null;
-    }
-  };
+const Cursor: React.FC<CursorProps> = ({ cursor, isVisible }) => {
+  if (!isVisible) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50">
-      <div className="bg-white rounded-lg shadow-lg p-4 min-w-[200px]">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">
-          Active Users ({activeUsers.length + 1})
-        </h3>
+    <div
+      className="remote-cursor"
+      style={{
+        left: cursor.x,
+        top: cursor.y,
+        borderColor: cursor.color,
+        position: 'absolute',
+        pointerEvents: 'none',
+        zIndex: 1000,
+        transform: 'translate(-2px, -2px)'
+      }}
+    >
+      <div 
+        className="cursor-pointer" 
+        style={{ backgroundColor: cursor.color }}
+      />
+      <div 
+        className="cursor-label"
+        style={{ backgroundColor: cursor.color }}
+      >
+        {cursor.user_name}
+      </div>
+    </div>
+  );
+};
+
+const PresenceIndicator: React.FC<PresenceIndicatorProps> = ({ 
+  boardId, 
+  currentUserId 
+}) => {
+  const [presence, setPresence] = useState<Map<string, UserPresence>>(new Map());
+  const [cursors, setCursors] = useState<Map<string, CursorPosition>>(new Map());
+  const [activities, setActivities] = useState<Map<string, any>>(new Map());
+
+  useEffect(() => {
+    // Initialize presence from WebSocket service
+    setPresence(wsService.getPresence());
+
+    // Handle presence updates
+    const handlePresenceJoin = (data: any) => {
+      const newPresence = new Map(presence);
+      newPresence.set(data.presence.user_id, data.presence);
+      setPresence(newPresence);
+    };
+
+    const handlePresenceLeave = (data: any) => {
+      const newPresence = new Map(presence);
+      newPresence.delete(data.user_id);
+      setPresence(newPresence);
+      
+      // Remove cursor
+      const newCursors = new Map(cursors);
+      newCursors.delete(data.user_id);
+      setCursors(newCursors);
+    };
+
+    const handlePresenceUpdate = (data: UserPresence) => {
+      const newPresence = new Map(presence);
+      newPresence.set(data.user_id, data);
+      setPresence(newPresence);
+    };
+
+    const handleCursorUpdate = (cursor: CursorPosition) => {
+      if (cursor.user_id !== currentUserId) {
+        const newCursors = new Map(cursors);
+        newCursors.set(cursor.user_id, cursor);
+        setCursors(newCursors);
         
-        {/* Current user */}
-        <div className="flex items-center gap-2 mb-2 text-sm">
-          <div 
-            className="w-3 h-3 rounded-full" 
-            style={{ backgroundColor: '#4F46E5' }}
-          />
-          <span className="text-gray-700 font-medium">You</span>
-          {getStatusIcon('active')}
-        </div>
+        // Hide cursor after 5 seconds of inactivity
+        setTimeout(() => {
+          setCursors(prev => {
+            const updated = new Map(prev);
+            const current = updated.get(cursor.user_id);
+            if (current && current.timestamp === cursor.timestamp) {
+              updated.delete(cursor.user_id);
+            }
+            return updated;
+          });
+        }, 5000);
+      }
+    };
 
-        {/* Other users */}
-        <AnimatePresence>
-          {activeUsers.map((user) => (
-            <motion.div
+    const handleUserActivity = (data: any) => {
+      if (data.user_id !== currentUserId) {
+        const newActivities = new Map(activities);
+        newActivities.set(data.user_id, data);
+        setActivities(newActivities);
+        
+        // Clear activity after 3 seconds
+        setTimeout(() => {
+          setActivities(prev => {
+            const updated = new Map(prev);
+            const current = updated.get(data.user_id);
+            if (current && current.timestamp === data.timestamp) {
+              updated.delete(data.user_id);
+            }
+            return updated;
+          });
+        }, 3000);
+      }
+    };
+
+    // Subscribe to events
+    wsService.onPresenceJoin(handlePresenceJoin);
+    wsService.onPresenceLeave(handlePresenceLeave);
+    wsService.onPresenceUpdate(handlePresenceUpdate);
+    wsService.onCursorUpdate(handleCursorUpdate);
+    wsService.onUserActivity(handleUserActivity);
+
+    return () => {
+      // Clean up - EventEmitter doesn't support removeListener by reference
+      // so we'll clear all listeners when component unmounts
+      wsService.removeAllListeners('presence_join');
+      wsService.removeAllListeners('presence_leave');
+      wsService.removeAllListeners('presence_update');
+      wsService.removeAllListeners('cursor_update');
+      wsService.removeAllListeners('user_activity');
+    };
+  }, [boardId, currentUserId, presence, cursors, activities]);
+
+  // Handle mouse movement to send cursor updates
+  useEffect(() => {
+    let throttleTimeout: number | null = null;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (throttleTimeout) return;
+      
+      throttleTimeout = window.setTimeout(() => {
+        wsService.sendCursorPosition(e.clientX, e.clientY);
+        throttleTimeout = null;
+      }, 50); // Throttle to 20fps
+    };
+
+    const handleMouseLeave = () => {
+      // Stop sending cursor updates when mouse leaves the window
+      if (throttleTimeout) {
+        clearTimeout(throttleTimeout);
+        throttleTimeout = null;
+      }
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseleave', handleMouseLeave);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseleave', handleMouseLeave);
+      if (throttleTimeout) {
+        clearTimeout(throttleTimeout);
+      }
+    };
+  }, []);
+
+  const activeUsers = Array.from(presence.values()).filter(
+    user => user.user_id !== currentUserId
+  );
+
+  return (
+    <div className="presence-indicator">
+      {/* User avatars */}
+      <div className="presence-avatars">
+        {activeUsers.map((user) => {
+          const activity = activities.get(user.user_id);
+          return (
+            <div
               key={user.user_id}
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="flex items-center gap-2 mb-2 text-sm"
+              className={`presence-avatar ${user.status}`}
+              style={{ backgroundColor: user.color }}
+              title={`${user.user_name} (${user.status})`}
             >
-              <div 
-                className="w-3 h-3 rounded-full" 
-                style={{ backgroundColor: user.color }}
-              />
-              <span className="text-gray-700 flex-1 truncate">
-                {user.user_name}
-              </span>
-              {getStatusIcon(user.status)}
-            </motion.div>
-          ))}
-        </AnimatePresence>
-
-        {activeUsers.length === 0 && (
-          <p className="text-xs text-gray-500 italic">
-            No other users online
-          </p>
+              <div className="avatar-initial">
+                {user.user_name.charAt(0).toUpperCase()}
+              </div>
+              {activity && (
+                <div className="activity-indicator" title={activity.activity_type}>
+                  {activity.activity_type === 'typing' && '✍️'}
+                  {activity.activity_type === 'editing' && '✏️'}
+                  {activity.activity_type === 'selecting' && '👆'}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {activeUsers.length > 0 && (
+          <div className="presence-count">
+            {activeUsers.length} online
+          </div>
         )}
       </div>
 
-      {/* Collaboration indicator */}
-      {activeUsers.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="mt-2 bg-green-100 text-green-800 text-xs rounded-lg px-3 py-2 text-center"
-        >
-          <div className="flex items-center justify-center gap-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-            <span>Live collaboration active</span>
-          </div>
-        </motion.div>
-      )}
+      {/* Remote cursors */}
+      {Array.from(cursors.entries()).map(([userId, cursor]) => (
+        <Cursor
+          key={userId}
+          cursor={cursor}
+          isVisible={userId !== currentUserId}
+        />
+      ))}
     </div>
   );
 };

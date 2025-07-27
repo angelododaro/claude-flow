@@ -36,11 +36,25 @@ import { AdvancedShapesTool } from './AdvancedShapesTool';
 import { MetaAdNode } from './MetaAdNode';
 import { TrendingContentNode } from './TrendingContentNode';
 import { ShapeNode } from './ShapeNode';
+import { VoiceNoteNode } from './VoiceNoteNode';
+import { AudioRecordingModal } from './AudioRecordingModal';
+import SearchResultNode from './SearchResultNode';
 import { useUndoRedo, createNodeCommand, deleteNodeCommand, moveNodeCommand, updateNodeCommand } from '../hooks/useUndoRedo';
 import { useKeyboardShortcuts, createCanvasShortcuts } from '../hooks/useKeyboardShortcuts';
 import wsService from '../services/websocket';
 import { Header } from './Header';
 import { Resource, Folder, Connection, Node, Edge, FlowConnection, NodeTypes, EdgeTypes } from '../types';
+import { ExportModal } from './ExportModal';
+import { ExportButton } from './ExportButton';
+import { exportService } from '../services/exportService';
+import { useAbility, Can } from '../contexts/AbilityContext';
+import { useAuthContext } from '../contexts/AuthContext';
+import SearchPanel from './SearchPanel';
+import { SearchResult } from '../services/searchService';
+import PresenceIndicator from './PresenceIndicator';
+import NotificationToast from './NotificationToast';
+import { useYjsCollaboration } from '../hooks/useYjsCollaboration';
+import { useYjsHistory } from '../hooks/useYjsHistory';
 
 // Define custom node types
 const nodeTypes: NodeTypes = {
@@ -48,6 +62,7 @@ const nodeTypes: NodeTypes = {
   aiChatNode: AIChatNode,
   folderNode: FolderNode,
   textNode: TextNode,
+  voiceNoteNode: VoiceNoteNode,
   urlNode: URLNode,
   frameNode: FrameNode,
   videoNode: VideoNode,
@@ -55,6 +70,7 @@ const nodeTypes: NodeTypes = {
   metaAdNode: MetaAdNode,
   trendingContentNode: TrendingContentNode,
   shapeNode: ShapeNode,
+  searchResultNode: SearchResultNode,
 };
 
 // Define custom edge types
@@ -89,13 +105,35 @@ export const BoardCanvas: React.FC = () => {
   const [showExploreTool, setShowExploreTool] = useState(false);
   const [showShareTool, setShowShareTool] = useState(false);
   const [showAdvancedShapes, setShowAdvancedShapes] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isAudioRecordingOpen, setIsAudioRecordingOpen] = useState(false);
+  const [showSearchPanel, setShowSearchPanel] = useState(false);
   
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
   const reactFlowInstance = useReactFlow();
   
   // Undo/Redo functionality
   const undoRedo = useUndoRedo<Node>();
 
+  // Get current user for presence
+  const { user } = useAuthContext();
+  
+  // Yjs collaboration integration
+  const yjsCollaboration = useYjsCollaboration({
+    boardId,
+    onNodesChange: setNodes,
+    onEdgesChange: setEdges,
+    initialNodes: nodes,
+    initialEdges: edges
+  });
+  
+  // Yjs history for undo/redo
+  const yjsHistory = useYjsHistory({
+    maxStackSize: 100,
+    captureTimeout: 500
+  });
+  
   // Initialize WebSocket connection for real-time collaboration
   useEffect(() => {
     wsService.connect(boardId);
@@ -119,6 +157,12 @@ export const BoardCanvas: React.FC = () => {
         // Update specific resource position
         updateResource(data.resource_id, { position: data.position });
       }
+      
+      // Send activity update for collaboration awareness
+      wsService.sendActivity('editing', {
+        resource_id: data.resource_id,
+        action: 'position_change'
+      });
     };
 
     const handleConnectionUpdate = (data: any) => {
@@ -146,6 +190,26 @@ export const BoardCanvas: React.FC = () => {
       wsService.disconnect();
     };
   }, [boardId, updateResource]);
+  
+  // Initialize Yjs collaboration when user is available
+  useEffect(() => {
+    if (user?.id && boardId && !yjsCollaboration.isConnected) {
+      yjsCollaboration.syncWithRemote();
+    }
+  }, [user?.id, boardId, yjsCollaboration]);
+  
+  // Initialize Yjs history when collaboration is ready
+  useEffect(() => {
+    if (yjsCollaboration.isConnected && !yjsHistory.isInitialized) {
+      yjsHistory.initializeHistory();
+    }
+    
+    return () => {
+      if (yjsHistory.isInitialized) {
+        yjsHistory.cleanupHistory();
+      }
+    };
+  }, [yjsCollaboration.isConnected, yjsHistory]);
 
   const {
     resources,
@@ -170,7 +234,8 @@ export const BoardCanvas: React.FC = () => {
             resource.type === 'annotation' ? 'annotationNode' :
             resource.type === 'meta-ad' ? 'metaAdNode' :
             resource.type === 'trending-content' ? 'trendingContentNode' :
-            resource.type === 'shape' ? 'shapeNode' : 'resourceNode',
+            resource.type === 'shape' ? 'shapeNode' :
+            resource.type === 'voice' ? 'voiceNoteNode' : 'resourceNode',
       position: resource.position,
       data: {
         ...resource,
@@ -315,6 +380,8 @@ export const BoardCanvas: React.FC = () => {
         (nodeId) => deleteResource(nodeId)
       );
       undoRedo.execute(command);
+    } else if (type === 'voice') {
+      setIsAudioRecordingOpen(true);
     } else if (type === 'ads-library') {
       setShowAdsLibrary(true);
     } else if (type === 'explore') {
@@ -436,6 +503,34 @@ export const BoardCanvas: React.FC = () => {
     undoRedo.execute(command);
     setShowAdvancedShapes(false);
   }, [addResource, deleteResource, undoRedo]);
+
+  // Handle search result selection
+  const handleSearchResultSelect = useCallback((result: SearchResult) => {
+    // Create a new search result node
+    const nodeId = `search-result-${Date.now()}`;
+    const newNode = {
+      id: nodeId,
+      type: 'searchResultNode',
+      position: { x: Math.random() * 500 + 100, y: Math.random() * 300 + 100 },
+      data: {
+        searchResult: result,
+        resourceType: result.resource_type,
+        similarityScore: result.similarity_score,
+        chunkIndex: result.chunk_index,
+        originalResourceId: result.resource_id,
+      },
+    };
+    
+    setNodes((nodes) => [...nodes, newNode]);
+    
+    // Create undo command
+    const command = createNodeCommand(
+      newNode,
+      () => setNodes((nodes) => [...nodes, newNode]),
+      () => setNodes((nodes) => nodes.filter((n) => n.id !== nodeId))
+    );
+    undoRedo.execute(command);
+  }, [setNodes, undoRedo]);
 
   // Handle modal add with undo/redo
   const handleModalAdd = useCallback((data: any) => {
@@ -578,6 +673,7 @@ export const BoardCanvas: React.FC = () => {
       addFolderNode: () => handleAddResource('folder'),
       addChatNode: () => handleAddResource('chat'),
       showHelp: () => setShowKeyboardHelp(true),
+      toggleSearch: () => setShowSearchPanel(!showSearchPanel),
     }),
     enabled: true,
   });
@@ -587,6 +683,54 @@ export const BoardCanvas: React.FC = () => {
     setSelectedNodes(nodes.map(n => n.id));
   }, []);
 
+  // Export handler
+  const handleExport = useCallback(async (options: any) => {
+    if (boardRef.current) {
+      try {
+        await exportService.exportBoard(boardRef.current, nodes, edges, options);
+      } catch (error) {
+        console.error('Export failed:', error);
+        // You could add a toast notification here
+      }
+    }
+  }, [nodes, edges]);
+
+  // Handler for audio recording completion
+  const handleAudioRecordingComplete = useCallback(async (blob: Blob, duration: number) => {
+    // In a real app, you would upload the blob to your server here
+    // For now, we'll create a local URL
+    const audioUrl = URL.createObjectURL(blob);
+    
+    // Create voice note node
+    const voiceNote = {
+      id: `voice-${Date.now()}`,
+      type: 'voiceNoteNode',
+      position: { x: Math.random() * 500 + 100, y: Math.random() * 300 + 100 },
+      data: {
+        id: `voice-${Date.now()}`,
+        audioUrl,
+        duration,
+        createdAt: new Date(),
+        title: 'Voice Note',
+        onDelete: (id: string) => {
+          setNodes((nds) => nds.filter((node) => node.id !== id));
+        },
+        onUpdate: (id: string, data: any) => {
+          setNodes((nds) =>
+            nds.map((node) =>
+              node.id === id ? { ...node, data: { ...node.data, ...data } } : node
+            )
+          );
+        },
+      },
+    };
+    
+    setNodes((nds) => [...nds, voiceNote]);
+    
+    // Clean up the URL when the component unmounts
+    // In a real app, you'd handle this differently
+  }, [setNodes]);
+
   return (
     <div className="w-full h-screen bg-gray-50 relative">
       {/* Board Header */}
@@ -595,8 +739,18 @@ export const BoardCanvas: React.FC = () => {
         onBoardNameChange={setBoardName}
       />
       
-      <div className="pt-14 h-full">
-        <SidebarMenu onAddResource={handleAddResource} />
+      <div className="pt-14 h-full" ref={boardRef}>
+        <SidebarMenu 
+          onAddResource={handleAddResource} 
+          onToggleSearch={() => setShowSearchPanel(!showSearchPanel)}
+        />
+        
+        {/* Export Button - Only show if user can export */}
+        <Can I="export" a="Board">
+          <div className="absolute top-20 right-4 z-10">
+            <ExportButton onClick={() => setIsExportModalOpen(true)} />
+          </div>
+        </Can>
         
         <div className="ml-16 h-full" ref={reactFlowWrapper}>
           <ReactFlow
@@ -706,6 +860,40 @@ export const BoardCanvas: React.FC = () => {
           onClose={() => setShowAdvancedShapes(false)}
         />
       )}
+
+      {/* Search Panel */}
+      <SearchPanel
+        isOpen={showSearchPanel}
+        onClose={() => setShowSearchPanel(false)}
+        boardId={boardId}
+        onResultSelect={handleSearchResultSelect}
+      />
+
+      {/* Export Modal */}
+      <ExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        onExport={handleExport}
+        boardTitle={boardName}
+      />
+
+      {/* Audio Recording Modal */}
+      <AudioRecordingModal
+        isOpen={isAudioRecordingOpen}
+        onClose={() => setIsAudioRecordingOpen(false)}
+        onRecordingComplete={handleAudioRecordingComplete}
+      />
+
+      {/* Real-time Collaboration Features */}
+      <PresenceIndicator 
+        boardId={boardId} 
+        currentUserId={user?.id} 
+      />
+      
+      <NotificationToast 
+        maxNotifications={5}
+        autoHideDuration={5000}
+      />
     </div>
   );
 };

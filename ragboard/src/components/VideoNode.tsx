@@ -16,6 +16,7 @@ import { clsx } from 'clsx';
 import type { Resource } from '../types';
 import { ResizableNodeWrapper } from './ResizableNodeWrapper';
 import { useBoardStore } from '../store/boardStore';
+import { VideoPlayer } from './VideoPlayer';
 
 export interface VideoNodeData extends Resource {
   onDelete?: (id: string) => void;
@@ -189,89 +190,37 @@ export const VideoNode = memo<NodeProps<VideoNodeData>>(({ data, selected }) => 
     }
 
     if (isDirect) {
-      // Direct video file
+      // Direct video file using Video.js player
       return (
         <div 
-          className="relative w-full h-full min-h-[200px] group"
+          className="relative w-full h-full min-h-[200px]"
           ref={containerRef}
-          onMouseEnter={() => setShowControls(true)}
-          onMouseLeave={() => setShowControls(false)}
         >
-          <video
-            ref={videoRef}
+          <VideoPlayer
             src={videoUrl}
-            className="w-full h-full object-cover rounded-lg"
-            onTimeUpdate={handleTimeUpdate}
-            onLoadedMetadata={handleLoadedMetadata}
-            onEnded={() => setIsPlaying(false)}
             poster={data.metadata?.thumbnail}
+            controls={true}
+            muted={isMuted}
+            preload="metadata"
+            className="rounded-lg"
+            onPlay={() => setIsPlaying(true)}
+            onPause={() => setIsPlaying(false)}
+            onEnded={() => setIsPlaying(false)}
+            onReady={(player) => {
+              // Store player reference if needed
+              if (player) {
+                setIsLoaded(true);
+              }
+            }}
+            onError={(error) => {
+              console.error('Video playback error:', error);
+            }}
           />
           
-          {/* Video overlay controls */}
-          <div 
-            className={clsx(
-              'absolute inset-0 bg-black/20 flex items-center justify-center transition-opacity',
-              showControls ? 'opacity-100' : 'opacity-0'
-            )}
-            onClick={togglePlay}
-          >
-            <button className="bg-black/50 text-white p-4 rounded-full hover:bg-black/70 transition-colors">
-              {isPlaying ? <Pause className="w-8 h-8" /> : <Play className="w-8 h-8" />}
-            </button>
-          </div>
-          
-          {/* Video controls bar */}
-          <div 
-            className={clsx(
-              'absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 transition-opacity',
-              showControls ? 'opacity-100' : 'opacity-0'
-            )}
-          >
-            <div className="flex items-center gap-3">
-              <button
-                onClick={togglePlay}
-                className="text-white hover:text-gray-300 transition-colors"
-              >
-                {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
-              </button>
-              
-              <button
-                onClick={toggleMute}
-                className="text-white hover:text-gray-300 transition-colors"
-              >
-                {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-              </button>
-              
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                value={volume}
-                onChange={handleVolumeChange}
-                className="w-20 accent-white"
-              />
-              
-              <input
-                type="range"
-                min="0"
-                max={duration || 0}
-                value={currentTime}
-                onChange={handleSeek}
-                className="flex-1 accent-white"
-              />
-              
-              <span className="text-white text-sm">
-                {formatDuration(currentTime)} / {formatDuration(duration)}
-              </span>
-              
-              <button
-                onClick={toggleFullscreen}
-                className="text-white hover:text-gray-300 transition-colors"
-              >
-                <Maximize className="w-5 h-5" />
-              </button>
-            </div>
+          {/* Video type indicator */}
+          <div className="absolute top-2 left-2 bg-black/70 text-white px-2 py-1 rounded-md text-xs flex items-center gap-1">
+            <Video className="w-3 h-3" />
+            Video
           </div>
         </div>
       );

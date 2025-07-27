@@ -5,6 +5,7 @@ API v1 router aggregation.
 from fastapi import APIRouter
 
 from app.api.endpoints import auth, resources, collections, conversations, processing, boards
+from app.api.v1.endpoints import search, upload
 
 api_router = APIRouter()
 
@@ -15,6 +16,8 @@ api_router.include_router(collections.router)
 api_router.include_router(conversations.router)
 api_router.include_router(processing.router)
 api_router.include_router(boards.router)
+api_router.include_router(search.router, prefix="/search", tags=["search"])
+api_router.include_router(upload.router, prefix="/upload", tags=["upload"])
 # New endpoints temporarily disabled for launch
 # api_router.include_router(comments.router)
 # api_router.include_router(notifications.router)

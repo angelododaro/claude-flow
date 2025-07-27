@@ -16,6 +16,9 @@ export type WebSocketEvent =
   | 'board_update'
   | 'resource_update'
   | 'connection_update'
+  | 'selection_update'
+  | 'user_activity'
+  | 'notification'
   | 'connected'
   | 'disconnected'
   | 'error'
@@ -98,6 +101,9 @@ class WebSocketService extends EventEmitter {
   private isConnected = false;
   private currentBoardId: string | null = null;
   private presenceMap: Map<string, UserPresence> = new Map();
+  private activityTimeout: number | null = null;
+  private lastActivity: number = Date.now();
+  private isActive: boolean = true;
 
   constructor(private wsUrl: string = 'ws://localhost:8000/ws') {
     super();
@@ -190,6 +196,18 @@ class WebSocketService extends EventEmitter {
             this.emit('cursor_update', message.data);
             break;
             
+          case 'selection_update':
+            this.emit('selection_update', message.data);
+            break;
+            
+          case 'user_activity':
+            this.emit('user_activity', message.data);
+            break;
+            
+          case 'notification':
+            this.emit('notification', message.data);
+            break;
+            
           default:
             this.emit(message.type, message.data);
         }
@@ -280,6 +298,13 @@ class WebSocketService extends EventEmitter {
 
   disconnect(): void {
     this.stopHeartbeat();
+    
+    // Clear activity timeout
+    if (this.activityTimeout) {
+      clearTimeout(this.activityTimeout);
+      this.activityTimeout = null;
+    }
+    
     if (this.ws) {
       this.ws.close(1000, 'Client disconnect');
       this.ws = null;
@@ -287,6 +312,7 @@ class WebSocketService extends EventEmitter {
     this.isConnected = false;
     this.currentBoardId = null;
     this.presenceMap.clear();
+    this.isActive = true;
   }
 
   getConnectionStatus(): boolean {
@@ -337,6 +363,51 @@ class WebSocketService extends EventEmitter {
 
   sendConnectionUpdate(connectionId: string, updates: any): void {
     this.send('connection_update', { connection_id: connectionId, ...updates });
+  }
+
+  sendSelectionUpdate(selection: any): void {
+    this.send('selection_update', { selection });
+  }
+
+  sendActivity(activityType: string, details: any = {}): void {
+    this.send('activity', { activity_type: activityType, details });
+    this.updateActivity();
+  }
+
+  private updateActivity(): void {
+    this.lastActivity = Date.now();
+    
+    // Clear previous timeout
+    if (this.activityTimeout) {
+      clearTimeout(this.activityTimeout);
+    }
+    
+    // Mark as idle after 30 seconds of no activity
+    this.activityTimeout = window.setTimeout(() => {
+      if (this.isActive) {
+        this.isActive = false;
+        this.updatePresenceStatus('idle');
+      }
+    }, 30000);
+    
+    // If we were idle, mark as active
+    if (!this.isActive) {
+      this.isActive = true;
+      this.updatePresenceStatus('active');
+    }
+  }
+
+  // Enhanced presence methods
+  onSelectionUpdate(callback: (data: any) => void): void {
+    this.on('selection_update', callback);
+  }
+
+  onUserActivity(callback: (data: any) => void): void {
+    this.on('user_activity', callback);
+  }
+
+  onNotification(callback: (data: any) => void): void {
+    this.on('notification', callback);
   }
 
   getPresence(): Map<string, UserPresence> {
