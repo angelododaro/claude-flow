@@ -31,7 +31,7 @@ interface WebSocketMessage {
   timestamp: string;
 }
 
-interface CursorPosition {
+export interface CursorPosition {
   x: number;
   y: number;
   user_id: string;
@@ -40,7 +40,7 @@ interface CursorPosition {
   timestamp: number;
 }
 
-interface UserPresence {
+export interface UserPresence {
   user_id: string;
   user_name: string;
   status: 'active' | 'idle' | 'away';

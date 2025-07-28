@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>RAGBOARD App Status Check</title>
+    <script>
+        async function checkAppStatus() {
+            const results = document.getElementById('results');
+            
+            try {
+                // Check if app loads
+                const response = await fetch('http://localhost:5173/');
+                const html = await response.text();
+                
+                results.innerHTML += '<p>✅ Frontend server is responding</p>';
+                
+                // Check for errors in a headless way
+                const iframe = document.createElement('iframe');
+                iframe.src = 'http://localhost:5173/';
+                iframe.style.width = '100%';
+                iframe.style.height = '600px';
+                iframe.style.border = '1px solid #ccc';
+                
+                iframe.onload = () => {
+                    results.innerHTML += '<p>✅ App loaded in iframe</p>';
+                    
+                    // Check if it's the fallback app
+                    setTimeout(() => {
+                        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                        const content = iframeDoc.body.textContent;
+                        
+                        if (content.includes('This is a fallback view')) {
+                            results.innerHTML += '<p>❌ App is still showing fallback view</p>';
+                        } else if (content.includes('RAGBOARD')) {
+                            results.innerHTML += '<p>✅ Main app appears to be loading!</p>';
+                        }
+                    }, 2000);
+                };
+                
+                document.body.appendChild(iframe);
+                
+            } catch (error) {
+                results.innerHTML += `<p>❌ Error: ${error.message}</p>`;
+            }
+        }
+        
+        window.onload = checkAppStatus;
+    </script>
+</head>
+<body>
+    <h1>RAGBOARD App Status Check</h1>
+    <div id="results"></div>
+</body>
+</html>

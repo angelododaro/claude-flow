@@ -118,11 +118,28 @@ export type EdgeTypes = Record<string, React.ComponentType<ReactFlowEdgeProps>>;
 export interface User {
   id: string;
   email: string;
-  name: string;
+  name?: string;
   role: 'admin' | 'owner' | 'collaborator' | 'viewer' | 'guest';
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
   ownedBoardIds?: string[];
   collaboratorBoardIds?: string[];
   viewerBoardIds?: string[];
   createdAt?: Date;
   updatedAt?: Date;
+}
+
+// Modal types
+export interface ModalState {
+  isOpen: boolean;
+  type: 'resource' | 'chat' | 'folder' | null;
+  editingNode?: BoardNode;
+}
+
+export interface BoardNode {
+  id: string;
+  type: string;
+  data: any;
+  position: { x: number; y: number };
 }

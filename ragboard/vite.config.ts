@@ -32,6 +32,14 @@ export default defineConfig({
     }
   },
   optimizeDeps: {
-    include: ['@xyflow/react', 'zustand', 'axios']
+    include: ['@xyflow/react', 'zustand', 'axios', '@casl/ability', '@casl/react', 'yjs', 'y-websocket'],
+    entries: ['src/main.tsx']
+  },
+  build: {
+    rollupOptions: {
+      input: {
+        main: '/index.html'
+      }
+    }
   }
 })
