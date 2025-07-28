@@ -1,5 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { MiniMap as ReactFlowMiniMap, useReactFlow, Node } from '@xyflow/react';
+import { MiniMap as ReactFlowMiniMap, useReactFlow } from '@xyflow/react';
+import type { Node } from '../types';
 import { Map, ZoomIn, ZoomOut, Maximize, Eye, EyeOff } from 'lucide-react';
 import { cn } from '../lib/utils';
 

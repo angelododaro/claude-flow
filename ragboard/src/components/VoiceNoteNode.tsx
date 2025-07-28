@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Handle, Position, NodeProps } from '@xyflow/react';
+import { Handle, Position } from '@xyflow/react';
+import type { NodeProps } from '../types';
 import { Volume2, Play, Pause, Trash2, Download } from 'lucide-react';
 
 export interface VoiceNoteData {

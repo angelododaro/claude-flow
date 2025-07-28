@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test App Loading</title>
+    <script>
+        // Check console for errors
+        console.log("Testing RAGBOARD loading...");
+        
+        // Monitor for errors
+        window.addEventListener('error', (e) => {
+            console.error('Global error:', e);
+        });
+        
+        window.addEventListener('unhandledrejection', (e) => {
+            console.error('Unhandled promise rejection:', e);
+        });
+    </script>
+</head>
+<body>
+    <h1>Check browser console for errors</h1>
+    <p>Open developer tools (F12) and check the Console tab</p>
+    <iframe src="http://localhost:5174" width="100%" height="600"></iframe>
+</body>
+</html>

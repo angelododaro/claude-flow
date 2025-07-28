@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { Handle, Position, NodeProps, useReactFlow } from '@xyflow/react';
+import { Handle, Position, useReactFlow } from '@xyflow/react';
+import type { NodeProps } from '../types';
 import { Box, Users, Minimize2, Maximize2, X, Edit2, Check } from 'lucide-react';
 import { cn } from '../lib/utils';
 

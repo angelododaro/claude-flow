@@ -1,5 +1,6 @@
 import React from 'react';
-import { Handle, Position, NodeProps } from '@xyflow/react';
+import { Handle, Position } from '@xyflow/react';
+import type { NodeProps } from '../types';
 import { ExternalLink, Search, TrendingUp, Eye } from 'lucide-react';
 import { clsx } from 'clsx';
 

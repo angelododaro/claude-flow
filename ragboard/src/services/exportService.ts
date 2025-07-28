@@ -1,7 +1,7 @@
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 import { saveAs } from 'file-saver';
-import { Node, Edge } from '@xyflow/react';
+import type { Node, Edge } from '../types';
 
 export interface ExportOptions {
   format: 'png' | 'jpg' | 'pdf';

@@ -13,6 +13,12 @@ export default defineConfig({
       port: 5173,
       protocol: 'ws',
       timeout: 120000
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      }
     }
   },
   preview: {

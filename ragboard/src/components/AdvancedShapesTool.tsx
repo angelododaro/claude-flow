@@ -15,7 +15,7 @@ import {
   Diamond,
   Hexagon,
   MessageCircle,
-  Highlight,
+  Highlighter,
   Edit3,
   Palette,
   Move,
@@ -212,7 +212,7 @@ export const AdvancedShapesTool: React.FC<AdvancedShapesToolProps> = ({ onAddSha
     {
       id: 'highlight-rect',
       name: 'Rectangle Highlight',
-      icon: Highlight,
+      icon: Highlighter,
       category: 'highlights',
       type: 'highlight-rect',
       defaultStyle: { fill: '#fef3c7', stroke: '#f59e0b', strokeWidth: 1, opacity: 0.7, rotation: 0 },
@@ -257,7 +257,7 @@ export const AdvancedShapesTool: React.FC<AdvancedShapesToolProps> = ({ onAddSha
     { id: 'basic', name: 'Basic Shapes', icon: Square },
     { id: 'arrows', name: 'Arrows & Lines', icon: ArrowRight },
     { id: 'callouts', name: 'Callouts', icon: MessageCircle },
-    { id: 'highlights', name: 'Highlights', icon: Highlight },
+    { id: 'highlights', name: 'Highlights', icon: Highlighter },
     { id: 'custom', name: 'Custom', icon: Star }
   ];
 

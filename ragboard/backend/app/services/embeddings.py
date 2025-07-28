@@ -3,7 +3,7 @@ Embedding generation service supporting multiple providers.
 """
 
 import logging
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Tuple
 import asyncio
 from enum import Enum
 import numpy as np

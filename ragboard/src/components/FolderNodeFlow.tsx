@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { Handle, Position } from '@xyflow/react';
-import type { NodeProps } from '@xyflow/react';
+import type { NodeProps } from '../types';
 import { Folder, FolderOpen, ChevronRight, ChevronDown } from 'lucide-react';
 
 interface FolderNodeData {

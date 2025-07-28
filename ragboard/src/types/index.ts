@@ -3,7 +3,8 @@ import type * as React from 'react';
 import type { 
   Node as ReactFlowNode,
   Edge as ReactFlowEdge,
-  Connection as ReactFlowConnection
+  Connection as ReactFlowConnection,
+  EdgeProps as ReactFlowEdgeProps
 } from '@xyflow/react';
 
 // Export all our custom types
@@ -19,7 +20,7 @@ export interface ResourceMetadata {
 
 export interface Resource {
   id: string;
-  type: 'video | image | text | pdf | url | audio | document | folder | link | frame | annotation | meta-ad | trending-content | shape';
+  type: 'video' | 'image' | 'text' | 'pdf' | 'url' | 'audio' | 'document' | 'folder' | 'link' | 'frame' | 'annotation' | 'meta-ad' | 'trending-content' | 'shape';
   title: string;
   description?: string;
   url?: string;

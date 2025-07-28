@@ -1,5 +1,6 @@
 import React from 'react';
-import { Handle, Position, NodeProps } from '@xyflow/react';
+import { Handle, Position } from '@xyflow/react';
+import type { NodeProps } from '../types';
 import { Link, X } from 'lucide-react';
 import { useBoardStore } from '../store/boardStore';
 import { ResizableNodeWrapper } from './ResizableNodeWrapper';

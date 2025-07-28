@@ -2,7 +2,13 @@
  * Service for semantic search and RAG pipeline operations
  */
 
-export interface SearchResult {
+import type { SearchResult, SearchResponse, ContextResponse, SearchSuggestion, SearchParams, SuggestionParams, SearchStats } from '../types/search';
+
+// Re-export types for backward compatibility
+export type { SearchResult, SearchResponse, ContextResponse, SearchSuggestion, SearchParams, SuggestionParams, SearchStats };
+
+/* Types moved to ../types/search.ts
+export type SearchResult = {
   id: string;
   content: string;
   similarity_score: number;
@@ -32,7 +38,7 @@ export interface SearchResult {
   };
 }
 
-export interface SearchResponse {
+export type SearchResponse = {
   query: string;
   total_results: number;
   results: SearchResult[];
@@ -44,7 +50,7 @@ export interface SearchResponse {
   };
 }
 
-export interface ContextResponse {
+export type ContextResponse = {
   query: string;
   context: string;
   sources: Array<{
@@ -57,13 +63,13 @@ export interface ContextResponse {
   board_id: string;
 }
 
-export interface SearchSuggestion {
+export type SearchSuggestion = {
   text: string;
   count?: number;
   resource_type?: string;
 }
 
-export interface SearchParams {
+export type SearchParams = {
   query: string;
   boardId?: string;
   resourceTypes?: string[];
@@ -71,13 +77,13 @@ export interface SearchParams {
   scoreThreshold?: number;
 }
 
-export interface SuggestionParams {
+export type SuggestionParams = {
   query: string;
   boardId?: string;
   limit?: number;
 }
 
-export interface SearchStats {
+export type SearchStats = {
   rag_pipeline: {
     embedding_provider: string;
     embedding_dimension: number;
@@ -92,6 +98,7 @@ export interface SearchStats {
   board_id?: string;
   user_id: string;
 }
+*/
 
 class SearchService {
   private readonly baseUrl: string;

@@ -44,14 +44,14 @@ ALLOWED_EXTENSIONS = {
     '.tiff': ResourceType.IMAGE,
     
     # Data files
-    '.csv': ResourceType.DATA,
-    '.xlsx': ResourceType.DATA,
-    '.xls': ResourceType.DATA,
-    '.json': ResourceType.DATA,
+    '.csv': ResourceType.DOCUMENT,
+    '.xlsx': ResourceType.DOCUMENT,
+    '.xls': ResourceType.DOCUMENT,
+    '.json': ResourceType.DOCUMENT,
     
     # Web content
-    '.html': ResourceType.WEB,
-    '.xml': ResourceType.WEB,
+    '.html': ResourceType.WEBPAGE,
+    '.xml': ResourceType.WEBPAGE,
     
     # Media
     '.mp4': ResourceType.VIDEO,

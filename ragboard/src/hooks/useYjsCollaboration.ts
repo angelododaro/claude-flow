@@ -1,5 +1,6 @@
 import { useEffect, useCallback, useRef, useState } from 'react';
-import { Node, Edge, useReactFlow } from '@xyflow/react';
+import { useReactFlow } from '@xyflow/react';
+import type { Node, Edge } from '../types';
 import yjsService, { YjsNode, YjsEdge } from '../services/yjsService';
 import { useAuthContext } from '../contexts/AuthContext';
 

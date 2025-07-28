@@ -15,6 +15,7 @@ export const EdgeProps = undefined;
 export const NodeTypes = undefined;
 export const EdgeTypes = undefined;
 export const ConnectionType = undefined;
+export const User = undefined;
 
 // Re-export everything from TypeScript file
 export * from './index.ts';

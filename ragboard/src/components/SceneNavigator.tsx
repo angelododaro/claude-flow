@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { useReactFlow, useStore, ReactFlowState } from '@xyflow/react';
+import { useReactFlow, useStore } from '@xyflow/react';
 import { Camera, Plus, Trash2, Edit2, Check, X, Grid, List } from 'lucide-react';
 import { cn } from '../lib/utils';
 
@@ -36,7 +36,7 @@ export const SceneNavigator: React.FC<SceneNavigatorProps> = ({
   
   const { getViewport, setViewport, getNodes } = useReactFlow();
   
-  const nodeCount = useStore((state: ReactFlowState) => state.nodes.length);
+  const nodeCount = useStore((state: any) => state.nodes.length);
 
   const captureSceneThumbnail = useCallback(() => {
     // In a real implementation, this would capture a screenshot of the canvas

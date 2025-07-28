@@ -1,5 +1,6 @@
 import React from 'react';
-import { Handle, Position, NodeProps } from '@xyflow/react';
+import { Handle, Position } from '@xyflow/react';
+import type { NodeProps } from '../types';
 import { Shapes, Square, Circle, Triangle, ArrowRight, Star } from 'lucide-react';
 import { clsx } from 'clsx';
 

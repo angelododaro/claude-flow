@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { createContextualCan, useAbility as useCaslAbility } from '@casl/react';
-import { AppAbility, defineAbilitiesFor, updateAbility } from '../auth/abilities';
+import { defineAbilitiesFor, updateAbility, ability } from '../auth/abilities';
+import type { AppAbility } from '../auth/abilities';
 import { useAuthContext } from './AuthContext';
 
 // Create the ability context

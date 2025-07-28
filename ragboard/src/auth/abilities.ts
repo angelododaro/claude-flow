@@ -1,4 +1,4 @@
-import { AbilityBuilder, createMongoAbility, MongoAbility, InferSubjects } from '@casl/ability';
+import { AbilityBuilder, createMongoAbility, PureAbility } from '@casl/ability';
 import { User } from '../types';
 
 // Define the subjects that can be acted upon
@@ -26,7 +26,7 @@ export type Comment = {
 };
 
 // Define all possible subjects
-type Subjects = InferSubjects<typeof Resource | typeof Board | typeof Comment | typeof User> | 'all';
+type Subjects = Resource | Board | Comment | User | 'all';
 
 // Define all possible actions
 export type Actions = 
@@ -41,7 +41,7 @@ export type Actions =
   | 'invite';
 
 // Define the Ability type
-export type AppAbility = MongoAbility<[Actions, Subjects]>;
+export type AppAbility = PureAbility<[Actions, Subjects]>;
 
 // Role definitions
 export enum Role {
@@ -167,7 +167,7 @@ export function canUser(
 }
 
 // Export ability instance for use in components
-export const ability = createMongoAbility<AppAbility>();
+export const ability = createMongoAbility();
 
 // Update ability when user changes
 export function updateAbility(user: User | null) {

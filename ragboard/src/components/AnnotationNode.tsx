@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Handle, Position, NodeProps } from '@xyflow/react';
+import { Handle, Position } from '@xyflow/react';
+import type { NodeProps } from '../types';
 import { 
   Edit3, 
   Trash2, 
@@ -12,7 +13,7 @@ import {
   ArrowRight,
   Triangle,
   MessageCircle,
-  Highlight,
+  Highlighter,
   Minus
 } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -386,7 +387,7 @@ export const AnnotationNode: React.FC<NodeProps<AnnotationData>> = ({
       case 'circle': return <Circle className="w-4 h-4" />;
       case 'line': return <Minus className="w-4 h-4" />;
       case 'callout': return <MessageCircle className="w-4 h-4" />;
-      case 'highlight': return <Highlight className="w-4 h-4" />;
+      case 'highlight': return <Highlighter className="w-4 h-4" />;
       default: return <Edit3 className="w-4 h-4" />;
     }
   };
