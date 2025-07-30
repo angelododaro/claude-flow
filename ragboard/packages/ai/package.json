@@ -1,0 +1,27 @@
+{
+  "name": "@ragboard/ai",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@langchain/community": "^0.0.20",
+    "@langchain/core": "^0.1.20",
+    "@langchain/openai": "^0.0.15",
+    "chromadb": "^1.7.3",
+    "langchain": "^0.1.15",
+    "openai": "^4.26.0",
+    "pdf-parse": "^1.1.1",
+    "cheerio": "^1.0.0-rc.12",
+    "axios": "^1.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "@types/pdf-parse": "^1.1.4",
+    "typescript": "^5.3.3"
+  }
+}

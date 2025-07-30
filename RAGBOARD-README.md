@@ -1,131 +1,180 @@
-You're building the first version of a web app called **RAGBoard**. It's a mind-mapping-style board that allows users to drag and drop multimedia content onto a visual canvas and connect that content to an AI chat module (Claude, GPT-4, etc.). The goal is to create a Retrieval-Augmented Generation (RAG) interface where users can inform the AI by visually linking resources.
+# RAGBOARD: AI Research & Ideation Canvas (Build Blueprint)
 
-Start by building the **core front-end components using React and TailwindCSS**, organized into a modular folder structure. Here's what to scaffold first:
+## 🚀 Project Purpose
+Rebuild Poppy AI as an open-source-first platform with real-time collaboration, AI-assisted research, and flexible media card-based ideation boards.
 
----
-
-### 🧱 Key Components (to scaffold now):
-
-1. **BoardCanvas** (`/components/BoardCanvas.tsx`)
-   - Full-screen, pannable, zoomable canvas.
-   - Supports drag-and-drop layout of nodes.
-   - Uses D3.js or React Flow for rendering nodes and connectors.
-
-2. **ResourceNode** (`/components/ResourceNode.tsx`)
-   - Reusable card UI for content types: video, image, text, PDF, URL, audio.
-   - Should include an icon, name/title, and optional preview.
-   - Accept `type`, `title`, `metadata`, and `position` as props.
-   - Make nodes draggable and resizable.
-
-3. **AIChatNode** (`/components/AIChatNode.tsx`)
-   - Visual chat module.
-   - Has a dotted-line connector system to show which nodes it's linked to.
-   - Can be clicked to open a side panel chat interface.
-
-4. **ConnectionLine** (`/components/ConnectionLine.tsx`)
-   - Dotted lines between resource nodes and the chat.
-   - Use absolute positioning or a canvas overlay to draw connections.
-
-5. **SidebarMenu** (`/components/SidebarMenu.tsx`)
-   - Icon-based menu (left side) to add new resources.
-   - Buttons: Add Social URL, Upload File, Record Audio, Paste Text, Add Website URL, Add Folder.
-
-6. **Modal: AddResourceModal** (`/components/AddResourceModal.tsx`)
-   - Opens based on input type.
-   - Accepts social URL, uploads, or raw text.
-   - Should simulate async "processing" of input (e.g. loading spinner).
-
-7. **FolderNode** (`/components/FolderNode.tsx`)
-   - Container node that can group other nodes.
-   - Toggle to expand/collapse contents.
-   - Can be connected to AI chat like a single node.
+NOTE: Reference /Screenshots and RAGBOARD-SCREENSHOT-EXAMPLES.md for visual references for many of the proposed features.
 
 ---
 
-### ⚙️ State Management:
+## 🧱 Core Tech Stack
 
-Use **Zustand** for managing:
-- Node positions and metadata.
-- Connections between nodes and chat.
-- Modal open/close state.
-- Folder contents.
-
-Create `/store/boardStore.ts` to hold global state.
-
----
-
-### 📦 Initial File Structure:
-
-```txt
-/src
-  /components
-    BoardCanvas.tsx
-    ResourceNode.tsx
-    AIChatNode.tsx
-    ConnectionLine.tsx
-    SidebarMenu.tsx
-    AddResourceModal.tsx
-    FolderNode.tsx
-  /store
-    boardStore.ts
-  App.tsx
-  index.tsx
-
-# 🧠 RAGBoard: Visual Knowledge Mapping + AI Chat Interface
-
-RAGBoard is a visual, board-style interface that enables users to connect multimodal content (videos, audio, images, documents, websites, and text) to an AI chat (e.g., Claude or GPT-4). The result is a powerful drag-and-drop **Retrieval-Augmented Generation (RAG)** system where each conversation has contextual awareness of the connected knowledge.
+| Layer               | Tool/Framework             |
+|--------------------|----------------------------|
+| Frontend           | Next.js 14+, Tailwind CSS, TypeScript |
+| Infinite Canvas    | [Excalidraw](https://github.com/excalidraw/excalidraw) w/ Y.js |
+| State Mgmt         | Zustand (local) + Y.js (collab) |
+| Backend API        | tRPC v11, Prisma           |
+| DB                 | PostgreSQL                 |
+| Auth               | Supabase Auth              |
+| Realtime Infra     | PartyKit (for custom sync) |
+| Storage            | MinIO (S3-compatible)      |
+| AI Interface       | LangChain + Vercel AI SDK via Requesty |
+| Vector Store       | Chroma (default, pluggable)|
+| Analytics          | PostHog + OpenMeter        |
+| Error Monitoring   | Sentry                     |
+| Testing            | Vitest + Playwright        |
 
 ---
 
-## 🚀 Features
+## 🧠 AI Architecture
 
-- 🧩 **Visual Mind-Map Board**  
-  Interactive canvas to drop and organize resource nodes (media, text, URLs, docs).
-
-- 🔗 **Drag-to-Connect AI Chat**  
-  Link any resource—or group of resources—to an AI chat module to inform conversations.
-
-- 📥 **Multi-Modal Input Support**  
-  - YouTube, TikTok, Instagram, LinkedIn, Facebook Ad URLs  
-  - Audio recordings (with built-in recorder and transcription)  
-  - Uploaded images (with OCR + visual analysis)  
-  - Website URLs (scraped and summarized)  
-  - PDFs, TXT, DOC files (text extracted and embedded)  
-  - Manual text input  
-
-- 🗂️ **Folders for Grouping Content**  
-  Drop multiple resources into a folder, then connect the folder to the AI for batch knowledge injection.
-
-- 🧠 **Pluggable LLM Support**  
-  Claude Sonnet by default, with option to swap in OpenAI GPT-4 or other APIs.
+- **Requesty API**: Central router for LLM calls (Claude, GPT-4, etc.)
+- **LangChain**:
+  - `ConversationalRetrievalQAChain` for chat-based RAG
+  - Vector store: Chroma (default)
+  - Prompt templates stored in `/prompts/` folder
+- **Whisper API**: Audio/video transcription
+- **RAG Context**: Board content indexed into vector DB
 
 ---
 
-## 🛠️ Tech Stack (Recommended)
+## 🧩 Feature Modules
 
-| Layer | Tool |
-|-------|------|
-| Frontend | React, TailwindCSS, D3.js or React Flow |
-| Backend | Node.js + Express |
-| Vector DB | Pinecone or Weaviate |
-| File Storage | AWS S3 |
-| Transcription | OpenAI Whisper API or AssemblyAI |
-| Image Analysis | CLIP + OCR (Tesseract) |
-| LLM API | Claude (Anthropic) and/or OpenAI GPT-4 |
-| Auth | Firebase Auth or Auth0 |
-| State Management | Zustand or Redux (optional) |
+### 1. Authentication
+- Supabase Auth (OAuth + email/password)
+- JWT-based sessions
+- RLS for board access control
+
+### 2. Board & Canvas
+- Excalidraw canvas: infinite, zoomable, resizable frames
+- Board metadata stored in Postgres
+- Thumbnails generated via Excalidraw export
+
+### 3. Card Types
+- **Text**: Lexical editor w/ formatting + AI assist
+- **Video**: Embed + transcript via Whisper
+- **Image**: Upload via MinIO, generate via Replicate
+- **Document**: pdf.js + Unstructured parser
+- **Audio**: MediaRecorder + WaveSurfer.js
+
+### 4. Collaboration
+- Real-time Y.js + PartyKit presence
+- Comments, mentions, live cursors
+
+### 5. AI Tooling
+- `/chat` endpoint → LangChain pipeline
+- `/generate-copy`, `/summarize` endpoints for single-shot AI
+- RAG indexing jobs queue
+
+### 6. Toolbar & Tools
+- Sidebar tool selector w/:
+  - Comments
+  - Media import
+  - Explore (trend discovery)
+  - File upload
+  - Voice recorder
+  - AI assistant
 
 ---
 
-## 🧱 System Architecture
+## 🧪 Testing Setup
 
-```txt
-[ User ]
-   ↓
-[ React Frontend Board ]
-   ↓                          ↘
-[ Node.js API ]          [ LLM API (Claude) ]
-   ↓                          ↗
-[ Embedding Engine + Vector DB ]
-   ↓
-[ Resource Metadata DB ]
+- `Vitest` for unit tests
+- `Playwright` for E2E tests
+- `axe-core` for accessibility checks
+
+---
+
+## 📦 Folder Structure
+
+```
+src/
+├── app/              # Next.js App Router
+│   ├── boards/       # Board pages
+│   └── api/          # tRPC endpoints
+├── components/       # Canvas, toolbar, card UIs
+├── lib/              # db (Prisma), ai (LangChain), collab (PartyKit)
+├── prompts/          # Prompt templates
+├── hooks/            # Custom React hooks
+```
+
+---
+
+## 📤 Deployment
+
+- Frontend: Vercel or self-host via Coolify
+- Backend: Fly.io or Railway
+- Vector DB: Local Chroma, optional upgrade to Qdrant
+- Storage: MinIO (local or S3-compatible remote)
+
+---
+
+## 🧩 Plugin-Friendly Design
+
+- Each tool in toolbar is modular
+- Plugins registered via `toolRegistry.ts`
+- Plugins follow:
+  - UI Component
+  - Zustand local state
+  - tRPC backend integration
+  - Optional real-time hook
+
+---
+
+## 🔄 Dev Milestones
+
+| Phase | Focus                         |
+|-------|-------------------------------|
+| 1     | Auth, DB, board CRUD, Excalidraw init |
+| 2     | Canvas polish, cards (text/image/doc) |
+| 3     | AI: LangChain + Whisper + RAG |
+| 4     | Realtime collab via Y.js/PartyKit |
+| 5     | Integrations, APIs, plugin SDK |
+| 6     | Testing, performance, docs     |
+
+---
+
+## 🛡️ Security
+
+- Supabase RLS policies
+- Upload virus scanning
+- E2E encryption (Y.js)
+- API rate limiting, JWT auth
+
+---
+
+## 📥 Migration Plan (from Poppy AI)
+- Scraper/browser extension to export board data
+- Import CLI with error logging + progress tracker
+- Manual import override UI
+
+---
+
+## 📘 Docs & API
+
+- Dev guide: `/docs/dev.md`
+- Prompt templates: `/prompts/`
+- Vector indexers: `/lib/ai/indexer.ts`
+- LLM routing: `/lib/ai/router.ts`
+
+---
+
+## ✅ Setup
+
+```bash
+git clone https://github.com/your-org/ragboard.git
+cd ragboard
+pnpm install
+pnpm dev
+```
+
+---
+
+## 🧠 Default Dev Flags
+
+```ts
+NEXT_PUBLIC_MODEL_PROVIDER = "claude"
+NEXT_PUBLIC_RAG_INDEX = "chroma"
+NEXT_PUBLIC_ANALYTICS = "posthog"
+```

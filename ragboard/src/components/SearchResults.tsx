@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FileText, ExternalLink, Download, Eye, Filter, Calendar, Hash, Zap } from 'lucide-react';
-import { SearchResult } from '../services/searchService';
+import type { SearchResult } from '../services/searchService';
 
 interface SearchResultsProps {
   results: SearchResult[];

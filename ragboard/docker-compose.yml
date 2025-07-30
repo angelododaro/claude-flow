@@ -1,29 +1,28 @@
-version: '3.8'
+version: '3.9'
 
 services:
   postgres:
-    image: postgres:15-alpine
-    container_name: ragboard_postgres
+    image: postgres:16-alpine
+    container_name: ragboard-postgres
     environment:
-      POSTGRES_USER: ragboard_user
-      POSTGRES_PASSWORD: ragboard_pass
-      POSTGRES_DB: ragboard_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ragboard
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ragboard_user -d ragboard_db"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: ragboard_redis
+    container_name: ragboard-redis
     ports:
       - "6379:6379"
-    command: redis-server --appendonly yes
     volumes:
       - redis_data:/data
     healthcheck:
@@ -32,6 +31,37 @@ services:
       timeout: 5s
       retries: 5
 
+  minio:
+    image: minio/minio:latest
+    container_name: ragboard-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: ragboard-chromadb
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      IS_PERSISTENT: TRUE
+      ANONYMIZED_TELEMETRY: FALSE
+
 volumes:
   postgres_data:
   redis_data:
+  minio_data:
+  chroma_data:

@@ -18,6 +18,7 @@ api_router.include_router(processing.router)
 api_router.include_router(boards.router)
 api_router.include_router(search.router, prefix="/search", tags=["search"])
 api_router.include_router(upload.router, prefix="/upload", tags=["upload"])
+# api_router.include_router(api_keys.router)  # Temporarily disabled
 # New endpoints temporarily disabled for launch
 # api_router.include_router(comments.router)
 # api_router.include_router(notifications.router)

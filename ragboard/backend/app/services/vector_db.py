@@ -2,6 +2,7 @@
 Vector database service for managing embeddings.
 """
 
+import os
 from typing import List, Dict, Any, Optional, Tuple
 from uuid import UUID
 import asyncio
@@ -55,7 +56,12 @@ class VectorDBService:
         self.provider = provider
         self.client = None
         self.collection = None
-        self._initialize_client()
+        
+        # Skip initialization if flag is set
+        if os.environ.get("SKIP_CHROMADB_INIT") != "true":
+            self._initialize_client()
+        else:
+            logger.info("Skipping ChromaDB initialization (simplified mode)")
     
     def _initialize_client(self):
         """Initialize the vector database client."""

@@ -43,14 +43,15 @@ import { useUndoRedo, createNodeCommand, deleteNodeCommand, moveNodeCommand, upd
 import { useKeyboardShortcuts, createCanvasShortcuts } from '../hooks/useKeyboardShortcuts';
 import wsService from '../services/websocket';
 import { Header } from './Header';
-import { Resource, Folder, Connection, Node, Edge, FlowConnection, NodeTypes, EdgeTypes } from '../types';
+import { Resource, Folder, Connection, Node, Edge, FlowConnection } from '../types';
+import type { NodeTypes, EdgeTypes } from '@xyflow/react';
 import { ExportModal } from './ExportModal';
 import { ExportButton } from './ExportButton';
 import { exportService } from '../services/exportService';
 import { useAbility, Can } from '../contexts/AbilityContext';
 import { useAuthContext } from '../contexts/AuthContext';
 import SearchPanel from './SearchPanel';
-import { SearchResult } from '../services/searchService';
+import type { SearchResult } from '../services/searchService';
 import PresenceIndicator from './PresenceIndicator';
 import NotificationToast from './NotificationToast';
 import { useYjsCollaboration } from '../hooks/useYjsCollaboration';

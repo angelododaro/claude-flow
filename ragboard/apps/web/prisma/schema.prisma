@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(cuid())
+  email      String   @unique
+  name       String?
+  avatarUrl  String?
+  boards     Board[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Board {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  thumbnail   String?
+  data        Json?        // Excalidraw data
+  userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  nodes       Node[]
+  connections Connection[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  
+  @@index([userId])
+}
+
+model Node {
+  id              String       @id @default(cuid())
+  type            String       // ai_chat, text, image, video, audio, document, url, folder
+  position        Json         // {x: number, y: number}
+  size            Json         // {width: number, height: number}
+  data            Json         // Node-specific data
+  boardId         String
+  board           Board        @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  fromConnections Connection[] @relation("FromNode")
+  toConnections   Connection[] @relation("ToNode")
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  
+  @@index([boardId])
+}
+
+model Connection {
+  id        String   @id @default(cuid())
+  fromId    String
+  from      Node     @relation("FromNode", fields: [fromId], references: [id], onDelete: Cascade)
+  toId      String
+  to        Node     @relation("ToNode", fields: [toId], references: [id], onDelete: Cascade)
+  boardId   String
+  board     Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  
+  @@unique([fromId, toId])
+  @@index([boardId])
+}

@@ -1,0 +1,258 @@
+"""
+API endpoints for secure API key management
+"""
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from typing import Dict, List, Optional
+from datetime import datetime, timedelta
+from pydantic import BaseModel, Field, validator
+
+from ...core.security import api_key_vault, api_key_security, get_current_user
+from ...core.config import api_key_manager
+
+router = APIRouter(prefix="/api/keys", tags=["api-keys"])
+
+
+class APIKeyCreate(BaseModel):
+    """Request model for creating/updating API key"""
+    service: str = Field(..., description="Service name (e.g., openai, anthropic)")
+    api_key: str = Field(..., description="The API key to store")
+    expires_in_days: Optional[int] = Field(None, description="Optional expiration in days")
+    
+    @validator("service")
+    def validate_service(cls, v):
+        allowed_services = [
+            "openai", "anthropic", "langchain", "requesty", 
+            "huggingface", "serper", "assemblyai"
+        ]
+        if v.lower() not in allowed_services:
+            raise ValueError(f"Service must be one of: {', '.join(allowed_services)}")
+        return v.lower()
+
+
+class APIKeyResponse(BaseModel):
+    """Response model for API key operations"""
+    service: str
+    key_hash: str
+    created_at: datetime
+    expires_at: Optional[datetime]
+    is_valid: bool
+    last_validated: Optional[datetime]
+
+
+class APIKeyValidation(BaseModel):
+    """Response model for key validation"""
+    service: str
+    is_valid: bool
+    error: Optional[str]
+    validated_at: datetime
+
+
+@router.post("/store", response_model=APIKeyResponse)
+async def store_api_key(
+    key_data: APIKeyCreate,
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Store an API key securely for a service
+    """
+    try:
+        # Validate key format
+        if not api_key_security.validate_key_format(key_data.service, key_data.api_key):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid API key format for {key_data.service}"
+            )
+        
+        # Calculate expiration
+        expires_at = None
+        if key_data.expires_in_days:
+            expires_at = datetime.utcnow() + timedelta(days=key_data.expires_in_days)
+        
+        # Store the key
+        key_hash = await api_key_vault.store_key(
+            user_id=current_user["id"],
+            service=key_data.service,
+            api_key=key_data.api_key,
+            expires_at=expires_at
+        )
+        
+        # Validate the key with the service
+        is_valid = api_key_manager.validate_key(key_data.service)
+        
+        return APIKeyResponse(
+            service=key_data.service,
+            key_hash=key_hash,
+            created_at=datetime.utcnow(),
+            expires_at=expires_at,
+            is_valid=is_valid,
+            last_validated=datetime.utcnow() if is_valid else None
+        )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Failed to store API key")
+
+
+@router.get("/list", response_model=List[APIKeyResponse])
+async def list_api_keys(
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    List all stored API keys for the current user (without exposing the actual keys)
+    """
+    user_keys = []
+    
+    # Get all keys for the user
+    for key_id, key_data in api_key_vault.keys.items():
+        if key_id.startswith(f"{current_user['id']}:"):
+            user_keys.append(APIKeyResponse(
+                service=key_data["service"],
+                key_hash=key_data["key_hash"],
+                created_at=key_data["created_at"],
+                expires_at=key_data["expires_at"],
+                is_valid=True,  # You might want to revalidate here
+                last_validated=key_data.get("last_validated")
+            ))
+    
+    return user_keys
+
+
+@router.post("/validate/{service}", response_model=APIKeyValidation)
+async def validate_api_key(
+    service: str,
+    background_tasks: BackgroundTasks,
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Validate a stored API key by making a test request
+    """
+    try:
+        # Get the key
+        api_key = await api_key_vault.get_key(current_user["id"], service)
+        
+        if not api_key:
+            return APIKeyValidation(
+                service=service,
+                is_valid=False,
+                error="No API key found for this service",
+                validated_at=datetime.utcnow()
+            )
+        
+        # Temporarily set the key for validation
+        import os
+        original_key = os.environ.get(f"{service.upper()}_API_KEY")
+        os.environ[f"{service.upper()}_API_KEY"] = api_key
+        
+        try:
+            # Validate the key
+            is_valid = api_key_manager.validate_key(service)
+            
+            return APIKeyValidation(
+                service=service,
+                is_valid=is_valid,
+                error=None if is_valid else "API key validation failed",
+                validated_at=datetime.utcnow()
+            )
+        finally:
+            # Restore original key
+            if original_key:
+                os.environ[f"{service.upper()}_API_KEY"] = original_key
+            else:
+                os.environ.pop(f"{service.upper()}_API_KEY", None)
+                
+    except Exception as e:
+        return APIKeyValidation(
+            service=service,
+            is_valid=False,
+            error=str(e),
+            validated_at=datetime.utcnow()
+        )
+
+
+@router.delete("/revoke/{service}")
+async def revoke_api_key(
+    service: str,
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Revoke a stored API key
+    """
+    success = await api_key_vault.revoke_key(current_user["id"], service)
+    
+    if not success:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No API key found for service: {service}"
+        )
+    
+    return {"message": f"API key for {service} has been revoked"}
+
+
+@router.post("/validate-all")
+async def validate_all_keys(
+    current_user: Dict = Depends(get_current_user)
+):
+    """
+    Validate all stored API keys for the current user
+    """
+    results = {}
+    
+    # Get all services for the user
+    services = set()
+    for key_id in api_key_vault.keys:
+        if key_id.startswith(f"{current_user['id']}:"):
+            service = key_id.split(":")[1]
+            services.add(service)
+    
+    # Validate each service
+    for service in services:
+        api_key = await api_key_vault.get_key(current_user["id"], service)
+        if api_key:
+            # Validate format
+            format_valid = api_key_security.validate_key_format(service, api_key)
+            
+            # Validate with service (simplified for demo)
+            service_valid = len(api_key) > 20  # Replace with actual validation
+            
+            results[service] = {
+                "format_valid": format_valid,
+                "service_valid": service_valid,
+                "overall_valid": format_valid and service_valid
+            }
+    
+    return results
+
+
+@router.get("/health")
+async def api_keys_health_check():
+    """
+    Check health of API key management system
+    """
+    try:
+        # Check encryption
+        test_key = "test-key-123"
+        encrypted = api_key_security.encrypt_key(test_key)
+        decrypted = api_key_security.decrypt_key(encrypted)
+        encryption_ok = decrypted == test_key
+        
+        # Check configured keys
+        from ...core.config import settings
+        configured_keys = {
+            "openai": bool(settings.OPENAI_API_KEY),
+            "anthropic": bool(settings.ANTHROPIC_API_KEY),
+            "langchain": bool(settings.LANGCHAIN_API_KEY),
+        }
+        
+        return {
+            "status": "healthy",
+            "encryption": "operational" if encryption_ok else "failed",
+            "configured_services": configured_keys,
+            "vault_active": True
+        }
+        
+    except Exception as e:
+        return {
+            "status": "unhealthy",
+            "error": str(e)
+        }

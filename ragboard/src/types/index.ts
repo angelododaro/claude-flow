@@ -20,7 +20,7 @@ export interface ResourceMetadata {
 
 export interface Resource {
   id: string;
-  type: 'video' | 'image' | 'text' | 'pdf' | 'url' | 'audio' | 'document' | 'folder' | 'link' | 'frame' | 'annotation' | 'meta-ad' | 'trending-content' | 'shape';
+  type: 'video' | 'image' | 'text' | 'pdf' | 'url' | 'audio' | 'document' | 'folder' | 'link' | 'frame' | 'annotation' | 'meta-ad' | 'trending-content' | 'shape' | 'voice';
   title: string;
   description?: string;
   url?: string;
